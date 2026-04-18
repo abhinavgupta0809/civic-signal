@@ -59,7 +59,7 @@ The extension:
 
 ---
 
-## 🧠 Claude as the Core Intelligence Layer (40% Judging Criteria)
+## 🧠 Claude as the Core Intelligence Layer
 
 Claude is not just used as an API — it is the **central reasoning engine** of CivicSignal.
 
