@@ -1,88 +1,76 @@
 # CivicSignal
 
-A minimal, demo-first MVP that analyzes an article's credibility and surfaces checkable claims.
-
-Paste an article → click **Analyze** → get a 0–100 credibility score, verdict badge, plain-English summary, a four-signal breakdown, 3–5 extracted claims with Supported / Disputed / Unverified pills, and an election-warning banner when relevant.
-
-Built with Next.js 15 (App Router), TypeScript, Tailwind CSS, and the Anthropic Claude API.
+CivicSignal is an AI-powered credibility analysis tool that helps users evaluate news articles by extracting factual claims, scoring credibility, and surfacing explainable reasoning — with special focus on election-related misinformation.
 
 ---
 
-## Quick start
+## 🎯 Problem
 
-```bash
-# 1. Install dependencies
-npm install
+Today’s information ecosystem is broken.
 
-# 2. Configure your API key
-cp .env.local.example .env.local
-# then open .env.local and set ANTHROPIC_API_KEY=sk-ant-...
+Users constantly encounter:
+- Misinformation and unverified claims  
+- Emotionally manipulative content  
+- Conflicting narratives across sources  
 
-# 3. Run the dev server
-npm run dev
-```
-
-Open <http://localhost:3000>.
-
-Get an Anthropic API key at <https://console.anthropic.com/>.
+Verifying information manually is slow, difficult, and unrealistic for most people.
 
 ---
 
-## How it works
+## 💡 Solution
 
-```
-app/page.tsx ──POST──▶ /api/analyze/route.ts
-                           │
-                           ├─ detectElectionContent()   (lib/scoring.ts)
-                           ├─ buildAnalysisPrompt()     (lib/anthropic.ts)
-                           ├─ callClaude()              (claude-haiku-4-5)
-                           └─ parseModelResponse()      (zod + safe fallback)
-```
+CivicSignal acts as a **real-time credibility assistant**.
 
-- **`lib/scoring.ts`** – keyword-based election detection, score→color mapping, and a verdict-band fallback if the model ever returns an invalid label.
-- **`lib/anthropic.ts`** – prompt builder, Claude client, and a tolerant JSON parser that validates with zod and never crashes on malformed output.
-- **`app/api/analyze/route.ts`** – thin orchestrator: validates input, runs the pipeline, returns structured JSON or a friendly error.
-
-The `lib/` folder has zero Next.js dependencies, so the same modules can later be reused from a Chrome-extension background service worker.
+Users paste any article, and the system:
+- Extracts key factual claims  
+- Evaluates credibility using structured reasoning  
+- Assigns a confidence score (0–100)  
+- Explains *why* the score was given  
+- Flags election-related content for extra caution  
 
 ---
 
-## Extending it
+## 🧠 Claude as the Core Intelligence Layer (40% Judging Criteria)
 
-The pipeline is split into named stages so real fact-checking slots in cleanly:
+Claude is not just used as an API — it is the **central reasoning engine** of CivicSignal.
 
-| Stage | Where to add it |
-| --- | --- |
-| Google Fact Check Claim Search | Call after `detectElectionContent`, before `buildAnalysisPrompt`. Pass results into the prompt as `RELATED FACT CHECKS`. |
-| Tavily / Serper live search | Wrap per-claim: extract claims in a first Claude pass, search each, then run the scoring prompt with results. |
-| Chrome extension (MV3) | Reuse `lib/scoring.ts` + `lib/anthropic.ts` from `background.js`. Build a popup that calls the same prompt/parsing code. |
+We designed the system to leverage Claude for **structured thinking, not just text generation**.
 
 ---
 
-## Project structure
+### 1. Claim Extraction (Understanding the Article)
 
-```
-app/
-  layout.tsx
-  page.tsx
-  globals.css
-  api/analyze/route.ts
-components/
-  ScoreCard.tsx
-  SignalBars.tsx
-  ClaimsList.tsx
-  ElectionBanner.tsx
-  ExampleLoader.tsx
-lib/
-  types.ts
-  scoring.ts
-  anthropic.ts
-```
+Claude converts raw, unstructured text into structured data by extracting **3–5 verifiable claims**.
+
+It filters:
+- Checkable facts  
+- Statements about events, policies, or statistics  
+- Claims that can be independently validated  
+
+This step transforms messy content into something the system can reason about.
 
 ---
 
-## Notes
+### 2. Structured Credibility Scoring (Reasoning, Not Guessing)
 
-- No database, no auth, no caching. MVP scope only.
-- The analysis is an assistive signal, not a verdict. The footer disclaimer says as much.
-- Claude is asked for JSON only; if the response is malformed the app returns an `Unverifiable` result instead of crashing.
+Claude evaluates the article across four explicit signals:
+
+- **Source credibility**  
+- **Claim corroboration**  
+- **Fact-check alignment**  
+- **Manipulative language detection**  
+
+It returns a structured JSON output:
+
+```json
+{
+  "score": 42,
+  "verdict": "Mixed Evidence",
+  "summary": "The article contains several claims without strong corroboration and uses emotionally loaded language.",
+  "signals": {
+    "source_credibility": 10,
+    "claim_corroboration": 12,
+    "fact_check_match": 8,
+    "manipulation_language": 12
+  }
+}
