@@ -1,9 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import {
+  ANALYSIS_FAILED_PREFIX,
   CLAIM_STATUSES,
   VERDICTS,
   type AnalysisResult,
+  type MbfcRating,
 } from "./types";
 import { clampScore, scoreToVerdict } from "./scoring";
 
@@ -36,6 +38,37 @@ export interface BuildPromptInput {
   text: string;
   domain?: string;
   electionRelated: boolean;
+  mbfc?: MbfcRating | null;
+}
+
+/**
+ * Renders the MBFC rating (or its absence) as a prompt block. When a rating
+ * exists it is presented as authoritative ground truth so the model aligns its
+ * source_credibility and summary with it — the route still hard-overrides the
+ * numeric signal afterwards, but this keeps the model's prose consistent.
+ */
+function buildMbfcBlock(mbfc?: MbfcRating | null): string {
+  if (!mbfc) {
+    return [
+      "SOURCE CREDIBILITY: No Media Bias/Fact Check rating was found for this domain.",
+      "Estimate source_credibility cautiously from the text alone and do not assume an established reputation.",
+    ].join("\n");
+  }
+
+  return [
+    "SOURCE CREDIBILITY (AUTHORITATIVE — Media Bias/Fact Check):",
+    `- Outlet: ${mbfc.name}`,
+    `- Factual Reporting: ${mbfc.factualReporting}`,
+    `- Bias: ${mbfc.bias}`,
+    `- MBFC Credibility: ${mbfc.credibility}`,
+    mbfc.questionable
+      ? "- Note: MBFC flags this as a Questionable/Conspiracy source."
+      : "",
+    "Treat this MBFC rating as the definitive measure of source credibility.",
+    "Set source_credibility to match it and do not let polished writing raise the overall score above what this rating supports.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**
@@ -47,11 +80,13 @@ export function buildAnalysisPrompt({
   text,
   domain,
   electionRelated,
+  mbfc,
 }: BuildPromptInput): string {
   const trimmed = text.slice(0, MAX_INPUT_CHARS);
   const domainLine = domain?.trim()
     ? `SOURCE DOMAIN: ${domain.trim()}`
     : "SOURCE DOMAIN: (not provided)";
+  const mbfcBlock = buildMbfcBlock(mbfc);
   const electionLine = electionRelated
     ? "ELECTION CONTEXT: This article appears election- or voting-related. Apply extra scrutiny to voting procedures, deadlines, and eligibility claims."
     : "ELECTION CONTEXT: Not detected.";
@@ -88,6 +123,7 @@ Return JSON matching exactly this shape:
 }
 
 ${domainLine}
+${mbfcBlock}
 ${electionLine}
 
 ARTICLE TEXT:
@@ -173,7 +209,7 @@ function safeFallback(
   return {
     score: 0,
     verdict: "Unverifiable",
-    summary: `Analysis could not be completed: ${reason}`,
+    summary: `${ANALYSIS_FAILED_PREFIX}: ${reason}`,
     election_related: electionRelated,
     signals: {
       source_credibility: 0,

@@ -170,7 +170,7 @@ export default function HomePage() {
             verdict={result.verdict}
             summary={result.summary}
           />
-          <SignalBars signals={result.signals} />
+          <SignalBars signals={result.signals} mbfc={result.mbfc} />
           <ClaimsList claims={result.claims} />
         </div>
       )}

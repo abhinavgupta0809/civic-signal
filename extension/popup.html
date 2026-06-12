@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CivicSignal</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">CivicSignal</span>
+      </div>
+      <p class="subtitle">Credibility check for the current page</p>
+    </header>
+
+    <main id="root">
+      <!-- Loading state -->
+      <section id="state-loading" class="card state">
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="loading-msg" class="state-msg">Analyzing article...</p>
+      </section>
+
+      <!-- Error state -->
+      <section id="state-error" class="card state error" hidden>
+        <p id="error-msg" class="state-msg"></p>
+        <button id="retry-btn" class="btn btn-primary">Try again</button>
+      </section>
+
+      <!-- Result state -->
+      <section id="state-result" hidden>
+        <div id="election-banner" class="banner banner-warn" hidden>
+          <strong>Election-related content detected.</strong>
+          <span>
+            Apply extra scrutiny. Verify voting procedures with your official
+            state election website.
+          </span>
+        </div>
+
+        <div class="card score-card">
+          <div class="score-row">
+            <div id="score-ring" class="score-ring">
+              <div id="score-value" class="score-value">--</div>
+              <div class="score-denom">/ 100</div>
+            </div>
+            <div class="score-meta">
+              <div class="label">Credibility score</div>
+              <span id="verdict-badge" class="badge">--</span>
+            </div>
+          </div>
+          <p id="summary-text" class="summary"></p>
+        </div>
+
+        <div class="card">
+          <div class="label section-label">Signal breakdown</div>
+          <div id="signal-bars" class="signals"></div>
+        </div>
+
+        <div class="card">
+          <div class="label section-label">Extracted claims</div>
+          <ul id="claims-list" class="claims"></ul>
+        </div>
+
+        <div class="actions">
+          <button id="reanalyze-btn" class="btn btn-secondary">
+            Re-analyze
+          </button>
+          <button id="copy-btn" class="btn btn-secondary">Copy JSON</button>
+        </div>
+
+        <div id="meta" class="meta"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      Assistive credibility signal, not a final source of truth.
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

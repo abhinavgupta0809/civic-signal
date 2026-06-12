@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "CivicSignal",
+  "version": "0.1.0",
+  "description": "Credibility check for the current page. Sends extracted article text to a local backend that calls Claude.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "CivicSignal — analyze this page"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
+    "<all_urls>"
+  ]
+}
