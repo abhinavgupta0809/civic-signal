@@ -1,9 +1,13 @@
-// CivicSignal background service worker (MV3).
-// - Owns the local API URL.
-// - Caches results per URL in memory for the worker's lifetime.
-// - Translates network/backend errors into a friendly shape for the popup.
+// CivicSignal background service worker (MV3) — standalone build.
+//
+// This build does NOT depend on the hosted website. It runs the full analysis
+// pipeline (extension/lib.js) inside the extension and calls the Anthropic
+// API directly with the USER'S OWN key, read from chrome.storage.local.
+// The key is sent only to api.anthropic.com and never to any other server.
 
-const API_URL = "http://localhost:3000/api/analyze";
+import { AnalysisError, analyzeArticle } from "./lib.js";
+
+const KEY_STORAGE = "anthropicApiKey";
 
 // In-memory cache. Service workers can be torn down when idle, so this is
 // "session-ish" not durable — that's fine for an MVP demo.
@@ -21,6 +25,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         console.error("[CivicSignal] bg unhandled error", err);
         sendResponse({
           ok: false,
+          needsKey: err instanceof AnalysisError && err.needsKey,
           error: err?.message || "Unknown analysis error.",
         });
       });
@@ -36,6 +41,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   return false;
 });
 
+async function getStoredKey() {
+  const stored = await chrome.storage.local.get(KEY_STORAGE);
+  const key = stored?.[KEY_STORAGE];
+  return typeof key === "string" && key.trim() ? key.trim() : "";
+}
+
 async function handleAnalyze({ text, domain, url, force }) {
   if (!text || text.trim().length < 40) {
     return {
@@ -50,41 +61,19 @@ async function handleAnalyze({ text, domain, url, force }) {
     return { ok: true, result: cache.get(url), cached: true };
   }
 
-  let res;
+  const apiKey = await getStoredKey();
+
+  let result;
   try {
-    res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, domain }),
-    });
+    result = await analyzeArticle({ text, domain, apiKey });
   } catch (err) {
-    console.error("[CivicSignal] network error", err);
-    return {
-      ok: false,
-      error:
-        "Cannot reach local backend at " +
-        API_URL +
-        ". Make sure `npm run dev` is running.",
-    };
+    if (err instanceof AnalysisError) {
+      return { ok: false, needsKey: err.needsKey, error: err.message };
+    }
+    console.error("[CivicSignal] analysis error", err);
+    return { ok: false, error: "Analysis failed unexpectedly. Try again." };
   }
 
-  let data;
-  try {
-    data = await res.json();
-  } catch {
-    return {
-      ok: false,
-      error: `Backend returned a non-JSON response (HTTP ${res.status}).`,
-    };
-  }
-
-  if (!res.ok) {
-    return {
-      ok: false,
-      error: data?.error || `Backend returned HTTP ${res.status}.`,
-    };
-  }
-
-  if (url) cache.set(url, data);
-  return { ok: true, result: data };
+  if (url) cache.set(url, result);
+  return { ok: true, result };
 }

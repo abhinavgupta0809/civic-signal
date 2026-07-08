@@ -9,28 +9,16 @@ export const dynamic = "force-dynamic";
 
 const MIN_TEXT_LENGTH = 40;
 
-// Permissive CORS for local MVP — lets the Chrome extension (origin
-// chrome-extension://...) and any local tool hit this endpoint.
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Max-Age": "86400",
-};
-
-function jsonWithCors(
+// No CORS headers on purpose: the endpoint is same-origin only. The Chrome
+// extension is a standalone build that talks to Anthropic directly, so no
+// cross-origin caller is expected — a wildcard here would let arbitrary
+// websites spend this deployment's API budget from visitors' browsers.
+function json(
   body: unknown,
   status: number,
   extraHeaders?: Record<string, string>
 ) {
-  return NextResponse.json(body, {
-    status,
-    headers: { ...CORS_HEADERS, ...extraHeaders },
-  });
-}
-
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
+  return NextResponse.json(body, { status, headers: extraHeaders });
 }
 
 export async function POST(req: Request) {
@@ -38,7 +26,7 @@ export async function POST(req: Request) {
   try {
     body = (await req.json()) as AnalyzeRequest;
   } catch {
-    return jsonWithCors({ error: "Request body must be valid JSON." }, 400);
+    return json({ error: "Request body must be valid JSON." }, 400);
   }
 
   const url = typeof body.url === "string" && body.url.trim() ? body.url.trim() : "";
@@ -47,7 +35,7 @@ export async function POST(req: Request) {
   // deployment can't run up the API bill or be used to fetch arbitrary URLs.
   const rl = checkRateLimit(clientIp(req));
   if (!rl.ok) {
-    return jsonWithCors({ error: rl.error }, rl.status, {
+    return json({ error: rl.error }, rl.status, {
       "Retry-After": String(rl.retryAfter),
     });
   }
@@ -64,9 +52,9 @@ export async function POST(req: Request) {
       domain = article.domain;
     } catch (err) {
       if (err instanceof ExtractError) {
-        return jsonWithCors({ error: err.message }, 400);
+        return json({ error: err.message }, 400);
       }
-      return jsonWithCors(
+      return json(
         { error: "Couldn't read that link. Please paste the article text instead." },
         502
       );
@@ -80,10 +68,10 @@ export async function POST(req: Request) {
         : undefined;
 
     if (!text) {
-      return jsonWithCors({ error: "Please paste article text or a link to analyze." }, 400);
+      return json({ error: "Please paste article text or a link to analyze." }, 400);
     }
     if (text.length < MIN_TEXT_LENGTH) {
-      return jsonWithCors(
+      return json(
         { error: `Article text is too short (minimum ${MIN_TEXT_LENGTH} characters).` },
         400
       );
@@ -97,7 +85,7 @@ export async function POST(req: Request) {
     const message =
       err instanceof Error ? err.message : "Unknown analysis error.";
     const isConfig = message.includes("ANTHROPIC_API_KEY");
-    return jsonWithCors(
+    return json(
       {
         error: isConfig
           ? message
@@ -107,5 +95,5 @@ export async function POST(req: Request) {
     );
   }
 
-  return jsonWithCors(result, 200);
+  return json(result, 200);
 }

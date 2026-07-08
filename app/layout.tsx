@@ -62,7 +62,7 @@ export default function RootLayout({
                 Methodology
               </a>
               <a
-                href="https://github.com"
+                href="https://github.com/abhinavgupta0809/civic-signal"
                 target="_blank"
                 rel="noreferrer"
                 className="transition-colors hover:text-primary"

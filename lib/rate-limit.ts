@@ -140,13 +140,19 @@ export function checkRateLimit(ip: string): RateLimitResult {
 
 /**
  * Extracts the client IP from proxy headers. Replit and most hosts set
- * `x-forwarded-for`; the first entry is the original client.
+ * `x-forwarded-for`.
+ *
+ * We take the LAST entry, not the first: each proxy appends the address it
+ * received the connection from, so the last entry was written by our own
+ * trusted proxy, while earlier entries can be freely spoofed by the client
+ * to rotate identities and bypass per-IP limits.
  */
 export function clientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for");
   if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
+    const parts = xff.split(",");
+    const last = parts[parts.length - 1]?.trim();
+    if (last) return last;
   }
   return req.headers.get("x-real-ip")?.trim() || "unknown";
 }

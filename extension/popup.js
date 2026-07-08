@@ -1,6 +1,10 @@
 // CivicSignal popup.
 // Flow: get active tab -> inject content.js -> read its return value
 //   -> ask background to ANALYZE -> render result (or error state).
+// First run (or a rejected key) routes to the settings state, where the
+// user stores their own Anthropic API key in chrome.storage.local.
+
+const KEY_STORAGE = "anthropicApiKey";
 
 const SIGNAL_LABELS = {
   source_credibility: "Source credibility",
@@ -18,6 +22,12 @@ const els = {
   retry: document.getElementById("retry-btn"),
   reanalyze: document.getElementById("reanalyze-btn"),
   copy: document.getElementById("copy-btn"),
+  settings: document.getElementById("state-settings"),
+  settingsBtn: document.getElementById("settings-btn"),
+  keyInput: document.getElementById("key-input"),
+  keyError: document.getElementById("key-error"),
+  keySave: document.getElementById("key-save-btn"),
+  keyClear: document.getElementById("key-clear-btn"),
   electionBanner: document.getElementById("election-banner"),
   scoreRing: document.getElementById("score-ring"),
   scoreValue: document.getElementById("score-value"),
@@ -30,10 +40,23 @@ const els = {
 
 let lastResult = null;
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   els.retry.addEventListener("click", () => run({ force: true }));
   els.reanalyze.addEventListener("click", () => run({ force: true }));
   els.copy.addEventListener("click", copyJson);
+  els.settingsBtn.addEventListener("click", () => openSettings());
+  els.keySave.addEventListener("click", saveKey);
+  els.keyClear.addEventListener("click", clearKey);
+  els.keyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") saveKey();
+  });
+
+  // First run: no key yet -> go straight to settings instead of failing.
+  const key = await getStoredKey();
+  if (!key) {
+    openSettings("Add your Anthropic API key to start analyzing.");
+    return;
+  }
   run({ force: false });
 });
 
@@ -41,6 +64,48 @@ function setState(state) {
   els.loading.hidden = state !== "loading";
   els.error.hidden = state !== "error";
   els.result.hidden = state !== "result";
+  els.settings.hidden = state !== "settings";
+}
+
+// --- API key management -----------------------------------------------------
+
+async function getStoredKey() {
+  try {
+    const stored = await chrome.storage.local.get(KEY_STORAGE);
+    const key = stored?.[KEY_STORAGE];
+    return typeof key === "string" && key.trim() ? key.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
+function openSettings(notice) {
+  els.keyError.hidden = !notice;
+  els.keyError.textContent = notice || "";
+  els.keyInput.value = "";
+  setState("settings");
+  els.keyInput.focus();
+}
+
+async function saveKey() {
+  const key = els.keyInput.value.trim();
+  if (!key.startsWith("sk-ant-") || key.length < 20) {
+    els.keyError.textContent =
+      'That doesn\'t look like an Anthropic key (it starts with "sk-ant-").';
+    els.keyError.hidden = false;
+    return;
+  }
+  await chrome.storage.local.set({ [KEY_STORAGE]: key });
+  els.keyInput.value = "";
+  // A new key invalidates cached "key rejected" states; re-run the analysis.
+  chrome.runtime.sendMessage({ type: "CLEAR_CACHE" }).catch(() => {});
+  run({ force: true });
+}
+
+async function clearKey() {
+  await chrome.storage.local.remove(KEY_STORAGE);
+  chrome.runtime.sendMessage({ type: "CLEAR_CACHE" }).catch(() => {});
+  openSettings("Key removed. Add a key to analyze again.");
 }
 
 function showError(msg) {
@@ -123,6 +188,10 @@ async function run({ force }) {
   console.log("[CivicSignal] bg response", response);
 
   if (!response?.ok) {
+    if (response?.needsKey) {
+      openSettings(response.error);
+      return;
+    }
     showError(response?.error || "Analysis failed for an unknown reason.");
     return;
   }

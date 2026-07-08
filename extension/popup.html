@@ -8,14 +8,47 @@
   </head>
   <body>
     <header class="header">
-      <div class="brand">
-        <span class="brand-dot"></span>
-        <span class="brand-name">CivicSignal</span>
+      <div class="header-row">
+        <div class="brand">
+          <span class="brand-dot"></span>
+          <span class="brand-name">CivicSignal</span>
+        </div>
+        <button id="settings-btn" class="icon-btn" title="API key settings" aria-label="API key settings">⚙</button>
       </div>
       <p class="subtitle">Credibility check for the current page</p>
     </header>
 
     <main id="root">
+      <!-- Settings / API key state -->
+      <section id="state-settings" class="card" hidden>
+        <div class="label section-label">Your Anthropic API key</div>
+        <p class="settings-note">
+          This unofficial extension runs on <strong>your own</strong> Anthropic
+          API key. The key is stored locally in your browser
+          (<code>chrome.storage.local</code>) and is sent only to
+          <code>api.anthropic.com</code> — never to any other server.
+        </p>
+        <input
+          id="key-input"
+          class="key-input"
+          type="password"
+          placeholder="sk-ant-..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <p id="key-error" class="key-error" hidden></p>
+        <div class="actions">
+          <button id="key-save-btn" class="btn btn-primary">Save key</button>
+          <button id="key-clear-btn" class="btn btn-secondary">Remove key</button>
+        </div>
+        <p class="settings-note small">
+          Get a key at <span class="mono">console.anthropic.com</span> → API
+          keys. Each analysis costs a fraction of a cent on Claude Haiku.
+          Prefer not to use your own key? Use the hosted website instead — see
+          the project README.
+        </p>
+      </section>
+
       <!-- Loading state -->
       <section id="state-loading" class="card state">
         <div class="spinner" aria-hidden="true"></div>
@@ -77,6 +110,6 @@
       Assistive credibility signal, not a final source of truth.
     </footer>
 
-    <script src="popup.js"></script>
+    <script src="popup.js" type="module"></script>
   </body>
 </html>
