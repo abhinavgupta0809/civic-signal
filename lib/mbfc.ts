@@ -22,7 +22,7 @@ import { clampScore, scoreToVerdict } from "./scoring";
  * overall trust score so a known low-credibility outlet can never present as
  * trustworthy on the strength of clean-sounding copy alone.
  */
-const MBFC_DATA: MbfcRating[] = [
+export const MBFC_DATA: MbfcRating[] = [
   // ---- Wire services & major US outlets ----
   { name: "Associated Press", domain: "apnews.com", bias: "Least Biased", factualReporting: "High", credibility: "High" },
   { name: "Reuters", domain: "reuters.com", bias: "Least Biased", factualReporting: "High", credibility: "High" },

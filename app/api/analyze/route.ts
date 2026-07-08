@@ -1,11 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  buildAnalysisPrompt,
-  callClaude,
-  parseModelResponse,
-} from "@/lib/anthropic";
-import { detectElectionContent } from "@/lib/scoring";
-import { applyMbfcOverride, lookupMbfc } from "@/lib/mbfc";
+import { analyzeArticle } from "@/lib/analyze";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import type { AnalyzeRequest } from "@/lib/types";
 
@@ -71,15 +65,9 @@ export async function POST(req: Request) {
     });
   }
 
-  const electionRelated = detectElectionContent(text);
-  // MBFC is the preferred source-credibility authority: look it up first and
-  // feed it into the prompt, then hard-override the signal after parsing.
-  const mbfc = lookupMbfc(domain);
-  const prompt = buildAnalysisPrompt({ text, domain, electionRelated, mbfc });
-
-  let raw: string;
+  let result;
   try {
-    raw = await callClaude(prompt);
+    result = await analyzeArticle({ text, domain });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Unknown analysis error.";
@@ -94,7 +82,5 @@ export async function POST(req: Request) {
     );
   }
 
-  const parsed = parseModelResponse(raw, electionRelated);
-  const result = mbfc ? applyMbfcOverride(parsed, mbfc) : parsed;
   return jsonWithCors(result, 200);
 }

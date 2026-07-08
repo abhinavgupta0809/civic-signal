@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "description": "Labeled corpus for the live pipeline eval. Each text is ORIGINAL synthetic prose written in the style of the source type (no copyrighted article text). Labels drive the accuracy metrics: `group` powers separation + cap-effectiveness; `expectedBand` powers the verdict confusion matrix; `electionExpected` checks election detection.",
+    "groups": {
+      "reliable": "MBFC High-credibility source; expect high scores",
+      "mixed": "MBFC Medium-credibility source; expect mid scores (capped at 79)",
+      "questionable": "MBFC Low-credibility source; MUST be capped at the Low-Credibility band (<=39) when MBFC is on",
+      "unknown": "No MBFC rating; exercises the ungrounded fallback path"
+    },
+    "bandVocabulary": ["High Confidence", "Mostly Credible", "Mixed Evidence", "Low Credibility", "Unverifiable"]
+  },
+  "articles": [
+    { "file": "ap-economy.txt", "domain": "apnews.com", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": false },
+    { "file": "reuters-summit.txt", "domain": "reuters.com", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": false },
+    { "file": "bbc-health.txt", "domain": "bbc.com", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": false },
+    { "file": "npr-voting.txt", "domain": "npr.org", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": true },
+    { "file": "cnn-politics.txt", "domain": "cnn.com", "group": "mixed", "expectedBand": "Mixed Evidence", "electionExpected": false },
+    { "file": "foxnews-immigration.txt", "domain": "foxnews.com", "group": "mixed", "expectedBand": "Mixed Evidence", "electionExpected": false },
+    { "file": "dailymail-celeb.txt", "domain": "dailymail.co.uk", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
+    { "file": "infowars-conspiracy.txt", "domain": "infowars.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
+    { "file": "gatewaypundit-fraud.txt", "domain": "thegatewaypundit.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": true },
+    { "file": "oann-claims.txt", "domain": "oann.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
+    { "file": "unknown-local-factual.txt", "domain": "smalltownexample.org", "group": "unknown", "expectedBand": "Mixed Evidence", "electionExpected": false },
+    { "file": "unknown-opinion.txt", "domain": "myhotopinions.example", "group": "unknown", "expectedBand": "Unverifiable", "electionExpected": false }
+  ]
+}
