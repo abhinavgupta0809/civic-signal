@@ -13,6 +13,19 @@ import { clampScore, scoreToVerdict } from "./scoring";
 const MODEL = "claude-haiku-4-5";
 const MAX_INPUT_CHARS = 6000;
 
+/**
+ * Max live web searches per analysis (Anthropic's built-in web_search tool).
+ * Live search is what lets very recent, true claims resolve to "Supported"
+ * with a citation instead of "Unverified" — training data alone can't verify
+ * this week's news. Each search costs extra (see Anthropic pricing), so it's
+ * capped; set WEB_SEARCH_MAX_USES=0 to disable entirely.
+ */
+function webSearchMaxUses(): number {
+  const raw = Number(process.env.WEB_SEARCH_MAX_USES);
+  if (Number.isFinite(raw) && raw >= 0) return Math.floor(raw);
+  return 3;
+}
+
 const SignalsSchema = z.object({
   source_credibility: z.number(),
   claim_corroboration: z.number(),
@@ -124,13 +137,16 @@ Your task: evaluate the article below and return ONE JSON object only. No prose,
 
 TODAY'S DATE: ${today}. Your training data may end before this date. Do NOT treat article dates on or before today as anachronistic, fictional, or "in the future", and do not penalize the article for describing recent events you have no record of.
 
+WEB SEARCH: If a web search tool is available, use it (within your search budget) to verify the article's most important claims — prioritize Central claims about recent events that your training data cannot cover. Base statuses on what the searches return.
+
 Rules:
 - Focus on checkable factual claims (people, events, numbers, procedures) — not opinions or predictions.
 - Extract between 3 and 5 claims. Never fewer than 3, never more than 5. Prefer the claims most central to the article's main story.
 - Each claim's "status" must be exactly one of: "Supported", "Disputed", "Unverified".
-  - "Supported": consistent with your knowledge or clearly evidenced within the article.
-  - "Disputed": contradicts your knowledge or is contested by credible sources.
-  - "Unverified": you cannot confirm or deny it (e.g. very recent events). Recency alone is NOT grounds for "Disputed".
+  - "Supported": consistent with your knowledge, clearly evidenced within the article, or corroborated by web search results.
+  - "Disputed": contradicts your knowledge, credible sources, or web search results.
+  - "Unverified": you cannot confirm or deny it after checking. Recency alone is NOT grounds for "Disputed".
+- When a status comes from web search corroboration, set that claim's "source" to the corroborating outlet (e.g. "Corroborated via web search: BBC Sport"), not "Model assessment".
 - Each claim's "relevance" must be exactly one of: "Central", "Supporting", "Peripheral".
   - "Central": carries the article's main story (its headline topic).
   - "Supporting": adds context or detail to the main story.
@@ -193,20 +209,48 @@ export async function callClaude(prompt: string): Promise<string> {
 
   const client = new Anthropic({ apiKey });
 
-  const response = await client.messages.create({
+  const maxUses = webSearchMaxUses();
+  const params: Anthropic.MessageCreateParamsNonStreaming = {
     model: MODEL,
-    // Explanations + notes lengthen the response; 1536 leaves headroom.
-    max_tokens: 1536,
+    // Explanations + notes lengthen the response; search results add more.
+    max_tokens: 2048,
     // 0 for maximum run-to-run stability of statuses and scores.
     temperature: 0,
     messages: [{ role: "user", content: prompt }],
-  });
+    ...(maxUses > 0 && {
+      tools: [
+        {
+          type: "web_search_20250305" as const,
+          name: "web_search" as const,
+          max_uses: maxUses,
+        },
+      ],
+    }),
+  };
 
-  const block = response.content.find((c) => c.type === "text");
-  if (!block || block.type !== "text") {
+  let response: Anthropic.Message;
+  try {
+    response = await client.messages.create(params);
+  } catch (err) {
+    // If the account/model rejects the web-search tool, degrade gracefully
+    // to an ungrounded analysis rather than failing the request.
+    if (maxUses > 0 && err instanceof Anthropic.APIError && err.status === 400) {
+      response = await client.messages.create({ ...params, tools: undefined });
+    } else {
+      throw err;
+    }
+  }
+
+  // With tools enabled the content interleaves text and search blocks; the
+  // final JSON can also be split across text blocks, so join them all.
+  const text = response.content
+    .filter((c): c is Anthropic.TextBlock => c.type === "text")
+    .map((c) => c.text)
+    .join("");
+  if (!text) {
     throw new Error("Claude returned no text content.");
   }
-  return block.text;
+  return text;
 }
 
 /**

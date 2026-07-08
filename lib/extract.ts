@@ -209,12 +209,60 @@ function htmlToText(html: string): string {
 }
 
 /**
+ * ESPN serves an empty HTTP 202 to non-browser clients, so scraping the page
+ * is a dead end — but its public content API returns the full story JSON.
+ * The story ID is digits extracted from the URL, so the API URL we build is
+ * fixed-host and safe. Returns null when the URL isn't an ESPN story.
+ */
+async function fetchEspnStory(url: URL): Promise<ExtractedArticle | null> {
+  if (!/(^|\.)espn\.com$/.test(url.hostname)) return null;
+  const idMatch = url.pathname.match(/\/id\/(\d+)/);
+  if (!idMatch) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://now.core.api.espn.com/v1/sports/news/${idMatch[1]}`,
+      { signal: controller.signal, headers: { accept: "application/json" } }
+    );
+  } catch {
+    return null; // fall through to the generic path
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) return null;
+
+  try {
+    const data = (await res.json()) as {
+      headlines?: Array<{ headline?: string; story?: string; description?: string }>;
+    };
+    const item = data.headlines?.[0];
+    const story = item?.story || item?.description || "";
+    const text = htmlToText(story).slice(0, MAX_CHARS);
+    if (text.length < MIN_USABLE_CHARS) return null;
+    return {
+      text,
+      title: item?.headline?.trim() ?? "",
+      domain: "espn.com",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetches a URL and returns readable article text plus the source domain
  * (which enables MBFC grounding automatically). Throws ExtractError with a
  * user-facing message when the URL is invalid, blocked, or yields no article.
  */
 export async function fetchArticle(rawUrl: string): Promise<ExtractedArticle> {
   const url = parseAndValidate(rawUrl);
+
+  const espn = await fetchEspnStory(url);
+  if (espn) return espn;
+
   const { html, finalUrl } = await guardedFetchHtml(url);
 
   let text = "";

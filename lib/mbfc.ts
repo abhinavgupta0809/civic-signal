@@ -51,6 +51,7 @@ export const MBFC_DATA: MbfcRating[] = [
   { name: "The New Yorker", domain: "newyorker.com", bias: "Left", factualReporting: "High", credibility: "High" },
   { name: "Los Angeles Times", domain: "latimes.com", bias: "Left-Center", factualReporting: "High", credibility: "High" },
   { name: "Chicago Tribune", domain: "chicagotribune.com", bias: "Right-Center", factualReporting: "High", credibility: "High" },
+  { name: "ESPN", domain: "espn.com", bias: "Least Biased", factualReporting: "High", credibility: "High" },
 
   // ---- Business / general interest ----
   { name: "Forbes", domain: "forbes.com", bias: "Right-Center", factualReporting: "Mostly Factual", credibility: "Medium" },

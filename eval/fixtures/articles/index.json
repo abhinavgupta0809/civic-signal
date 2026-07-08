@@ -13,6 +13,7 @@
     { "file": "ap-economy.txt", "domain": "apnews.com", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": false },
     { "file": "reuters-summit.txt", "domain": "reuters.com", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": false },
     { "file": "bbc-health.txt", "domain": "bbc.com", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": false },
+    { "file": "espn-recent-sports.txt", "domain": "espn.com", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": false, "note": "Recent-true-news case study: events after the model's training cutoff. Without live web search these claims can only be 'Unverified'; with the web_search tool enabled they should resolve to 'Supported' with citations. See 'Case study' in eval/README.md." },
     { "file": "npr-voting.txt", "domain": "npr.org", "group": "reliable", "expectedBand": "Mostly Credible", "electionExpected": true },
     { "file": "cnn-politics.txt", "domain": "cnn.com", "group": "mixed", "expectedBand": "Mixed Evidence", "electionExpected": false },
     { "file": "foxnews-immigration.txt", "domain": "foxnews.com", "group": "mixed", "expectedBand": "Mixed Evidence", "electionExpected": false },

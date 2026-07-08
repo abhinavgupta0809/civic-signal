@@ -23,7 +23,7 @@ This repo ships two separate builds. They do not depend on each other. Pick whic
 
 ### 🌐 Option 1: use the hosted website (zero setup)
 
-> Live app: `https://YOUR-DEPLOYMENT.replit.app` (maintainer: put your deployed Replit URL here)
+> Live app: <https://civic-signal.replit.app>
 
 Open the link, paste an article URL or its text, and click Analyze. That is it.
 
@@ -116,6 +116,23 @@ Layer 2: live end-to-end ablation (`npm run eval:live`). It runs a labeled set o
 Those three escapes are the whole point. They are straight-news-style articles from low-credibility outlets (Breitbart, Newsmax, The Sun). The model on its own rated them "Mostly Credible" (62 to 72). With MBFC grounding, all three were capped to 39 ("Low Credibility"). The model alone gets fooled by clean writing. Grounding the source signal in human-reviewed data is what catches it.
 
 See [`eval/README.md`](eval/README.md) for the full method and the honesty notes.
+
+---
+
+## 🔎 Case study: when true news showed as "Unverified"
+
+A real failure found during testing (July 8, 2026). An ESPN report that Jordan Henderson broke his arm celebrating England's World Cup win over Mexico — true, and published just hours earlier — came back with its core claims marked **Unverified**: "cannot be verified against training data". The quarterfinal against Norway, a scheduled real fixture, got the same label.
+
+Why it happened, and why it is two different problems:
+
+1. **MBFC rates outlets, not facts.** The MBFC grounding can say "ESPN has High factual reporting". It can never say "England really does play Norway on Saturday". No source-rating dataset can verify an individual claim.
+2. **Models have a training cutoff.** Events from this week do not exist in the model's weights. The honest answer from memory alone is "Unverified" — which is correct behavior, but useless to a reader who wants to know if recent news checks out.
+
+The fix: the analysis now uses Anthropic's built-in **`web_search` tool**. During the call, Claude runs a few real web searches (capped per analysis to protect cost) for the article's most important claims and bases the status on what it finds — so a true recent claim becomes **Supported** with the corroborating outlet cited right on the claim (e.g. "Corroborated via web search: BBC Sport"), and a fabricated one becomes **Disputed**. If search is unavailable, the pipeline degrades gracefully back to training-data-only judgment, and "Unverified" keeps meaning what it always meant: *couldn't confirm, not false*.
+
+The article that exposed the problem is preserved as a regression fixture (`eval/fixtures/articles/espn-recent-sports.txt`, a synthetic reconstruction) — see the case-study section of [`eval/README.md`](eval/README.md).
+
+Cost control: searches are billed by Anthropic per use, so they are capped by the `WEB_SEARCH_MAX_USES` secret (default 3 per analysis; set 0 to disable search entirely).
 
 ---
 
@@ -267,8 +284,8 @@ The pipeline is split into named stages, so real fact-checking can slot in clean
 | --- | --- |
 | MBFC source rating | ✅ Done. Looked up before the prompt and applied as a trusted override. Swap the curated array for the full MBFC dataset to cover more sources. |
 | Chrome extension (MV3) | ✅ Done. Standalone build with the user's own key stored locally. |
+| Live web search for claims | ✅ Done. Anthropic's built-in `web_search` tool runs real searches during the analysis (capped per request), so recent true claims resolve to "Supported" with a citation instead of "Unverified". See the case study below. |
 | Google Fact Check Claim Search | Planned. Call it after `lookupMbfc` and pass the results into the prompt as `RELATED FACT CHECKS`. |
-| Tavily / Serper live search | Planned. Extract claims in a first pass, search each one, then score with the results in hand. |
 
 A few more notes:
 - The MBFC dataset is a curated snapshot of well-known publishers, not the full live database. MBFC ratings change over time, so refresh from the official dataset for production.

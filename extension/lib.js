@@ -111,6 +111,7 @@ export const MBFC_DATA = [
   { name: "The New Yorker", domain: "newyorker.com", bias: "Left", factualReporting: "High", credibility: "High" },
   { name: "Los Angeles Times", domain: "latimes.com", bias: "Left-Center", factualReporting: "High", credibility: "High" },
   { name: "Chicago Tribune", domain: "chicagotribune.com", bias: "Right-Center", factualReporting: "High", credibility: "High" },
+  { name: "ESPN", domain: "espn.com", bias: "Least Biased", factualReporting: "High", credibility: "High" },
 
   // ---- Business / general interest ----
   { name: "Forbes", domain: "forbes.com", bias: "Right-Center", factualReporting: "Mostly Factual", credibility: "Medium" },
@@ -328,13 +329,16 @@ Your task: evaluate the article below and return ONE JSON object only. No prose,
 
 TODAY'S DATE: ${today}. Your training data may end before this date. Do NOT treat article dates on or before today as anachronistic, fictional, or "in the future", and do not penalize the article for describing recent events you have no record of.
 
+WEB SEARCH: If a web search tool is available, use it (within your search budget) to verify the article's most important claims — prioritize Central claims about recent events that your training data cannot cover. Base statuses on what the searches return.
+
 Rules:
 - Focus on checkable factual claims (people, events, numbers, procedures) — not opinions or predictions.
 - Extract between 3 and 5 claims. Never fewer than 3, never more than 5. Prefer the claims most central to the article's main story.
 - Each claim's "status" must be exactly one of: "Supported", "Disputed", "Unverified".
-  - "Supported": consistent with your knowledge or clearly evidenced within the article.
-  - "Disputed": contradicts your knowledge or is contested by credible sources.
-  - "Unverified": you cannot confirm or deny it (e.g. very recent events). Recency alone is NOT grounds for "Disputed".
+  - "Supported": consistent with your knowledge, clearly evidenced within the article, or corroborated by web search results.
+  - "Disputed": contradicts your knowledge, credible sources, or web search results.
+  - "Unverified": you cannot confirm or deny it after checking. Recency alone is NOT grounds for "Disputed".
+- When a status comes from web search corroboration, set that claim's "source" to the corroborating outlet (e.g. "Corroborated via web search: BBC Sport"), not "Model assessment".
 - Each claim's "relevance" must be exactly one of: "Central", "Supporting", "Peripheral".
   - "Central": carries the article's main story (its headline topic).
   - "Supporting": adds context or detail to the main story.
@@ -569,7 +573,26 @@ export class AnalysisError extends Error {
   }
 }
 
-async function callClaude(prompt, apiKey) {
+// Live web searches per analysis. Lets very recent, true claims resolve to
+// "Supported" with a citation instead of "Unverified". Costs extra per search
+// on the user's key (see Anthropic pricing); set to 0 to disable.
+const WEB_SEARCH_MAX_USES = 3;
+
+async function callClaude(prompt, apiKey, { withSearch = true } = {}) {
+  const body = {
+    model: MODEL,
+    // Explanations + notes lengthen the response; search results add more.
+    max_tokens: 2048,
+    // 0 for maximum run-to-run stability of statuses and scores.
+    temperature: 0,
+    messages: [{ role: "user", content: prompt }],
+  };
+  if (withSearch && WEB_SEARCH_MAX_USES > 0) {
+    body.tools = [
+      { type: "web_search_20250305", name: "web_search", max_uses: WEB_SEARCH_MAX_USES },
+    ];
+  }
+
   let res;
   try {
     res = await fetch(ANTHROPIC_API_URL, {
@@ -581,19 +604,18 @@ async function callClaude(prompt, apiKey) {
         // Required by Anthropic for requests made from browser contexts.
         "anthropic-dangerous-direct-browser-access": "true",
       },
-      body: JSON.stringify({
-        model: MODEL,
-        // Explanations + notes lengthen the response; 1536 leaves headroom.
-        max_tokens: 1536,
-        // 0 for maximum run-to-run stability of statuses and scores.
-        temperature: 0,
-        messages: [{ role: "user", content: prompt }],
-      }),
+      body: JSON.stringify(body),
     });
   } catch {
     throw new AnalysisError(
       "Couldn't reach the Anthropic API. Check your internet connection."
     );
+  }
+
+  // If the account/model rejects the web-search tool, degrade gracefully to
+  // an ungrounded analysis rather than failing the whole request.
+  if (res.status === 400 && body.tools) {
+    return callClaude(prompt, apiKey, { withSearch: false });
   }
 
   if (res.status === 401 || res.status === 403) {
@@ -612,13 +634,18 @@ async function callClaude(prompt, apiKey) {
   }
 
   const data = await res.json();
-  const block = Array.isArray(data?.content)
-    ? data.content.find((c) => c.type === "text")
-    : null;
-  if (!block || typeof block.text !== "string") {
+  // With tools enabled the content interleaves text and search blocks; the
+  // final JSON can also be split across text blocks, so join them all.
+  const text = Array.isArray(data?.content)
+    ? data.content
+        .filter((c) => c.type === "text" && typeof c.text === "string")
+        .map((c) => c.text)
+        .join("")
+    : "";
+  if (!text) {
     throw new AnalysisError("The model returned no text content.");
   }
-  return block.text;
+  return text;
 }
 
 /**

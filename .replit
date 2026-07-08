@@ -10,6 +10,7 @@
 #   RATE_IP_PER_MIN = 8
 #   RATE_IP_PER_DAY = 40
 #   RATE_GLOBAL_PER_DAY = 500
+#   WEB_SEARCH_MAX_USES = 3   (live web searches per analysis; 0 disables)
 
 run = "npm run dev"
 entrypoint = "app/page.tsx"
