@@ -285,7 +285,11 @@ export default function HomePage() {
               verdict={result.verdict}
               summary={result.summary}
             />
-            <SignalBars signals={result.signals} mbfc={result.mbfc} />
+            <SignalBars
+              signals={result.signals}
+              explanations={result.signal_explanations}
+              mbfc={result.mbfc}
+            />
             <ClaimsList claims={result.claims} />
             <div className="flex justify-center">
               <button

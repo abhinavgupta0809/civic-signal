@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import {
   ANALYSIS_FAILED_PREFIX,
+  CLAIM_RELEVANCE,
   CLAIM_STATUSES,
   VERDICTS,
   type AnalysisResult,
@@ -19,10 +20,28 @@ const SignalsSchema = z.object({
   manipulation_language: z.number(),
 });
 
+// Explanations are transparency extras: tolerate a missing/malformed block
+// rather than discarding an otherwise valid analysis.
+const SignalExplanationsSchema = z
+  .object({
+    source_credibility: z.string().catch(""),
+    claim_corroboration: z.string().catch(""),
+    fact_check_match: z.string().catch(""),
+    manipulation_language: z.string().catch(""),
+  })
+  .catch({
+    source_credibility: "",
+    claim_corroboration: "",
+    fact_check_match: "",
+    manipulation_language: "",
+  });
+
 const ClaimSchema = z.object({
   claim: z.string().min(1),
   status: z.enum(CLAIM_STATUSES),
   source: z.string().default("Model assessment"),
+  relevance: z.enum(CLAIM_RELEVANCE).catch("Supporting"),
+  note: z.string().catch(""),
 });
 
 const AnalysisSchema = z.object({
@@ -31,6 +50,12 @@ const AnalysisSchema = z.object({
   summary: z.string().min(1),
   election_related: z.boolean(),
   signals: SignalsSchema,
+  signal_explanations: SignalExplanationsSchema.default({
+    source_credibility: "",
+    claim_corroboration: "",
+    fact_check_match: "",
+    manipulation_language: "",
+  }),
   claims: z.array(ClaimSchema).min(1).max(8),
 });
 
@@ -91,14 +116,27 @@ export function buildAnalysisPrompt({
     ? "ELECTION CONTEXT: This article appears election- or voting-related. Apply extra scrutiny to voting procedures, deadlines, and eligibility claims."
     : "ELECTION CONTEXT: Not detected.";
 
+  const today = new Date().toISOString().slice(0, 10);
+
   return `You are a careful credibility analyst for a news-literacy tool.
 
 Your task: evaluate the article below and return ONE JSON object only. No prose, no markdown fences, no commentary.
 
+TODAY'S DATE: ${today}. Your training data may end before this date. Do NOT treat article dates on or before today as anachronistic, fictional, or "in the future", and do not penalize the article for describing recent events you have no record of.
+
 Rules:
 - Focus on checkable factual claims (people, events, numbers, procedures) — not opinions or predictions.
-- Extract between 3 and 5 claims. Never fewer than 3, never more than 5.
+- Extract between 3 and 5 claims. Never fewer than 3, never more than 5. Prefer the claims most central to the article's main story.
 - Each claim's "status" must be exactly one of: "Supported", "Disputed", "Unverified".
+  - "Supported": consistent with your knowledge or clearly evidenced within the article.
+  - "Disputed": contradicts your knowledge or is contested by credible sources.
+  - "Unverified": you cannot confirm or deny it (e.g. very recent events). Recency alone is NOT grounds for "Disputed".
+- Each claim's "relevance" must be exactly one of: "Central", "Supporting", "Peripheral".
+  - "Central": carries the article's main story (its headline topic).
+  - "Supporting": adds context or detail to the main story.
+  - "Peripheral": an aside — celebrity sightings, trivia, promotions, or anything that could be deleted without changing the main story.
+- Each claim's "note" is ONE short sentence explaining the status and relevance call.
+- Each entry in "signal_explanations" is ONE short plain-English sentence a general reader can understand, citing something concrete about THIS article (a phrase, a pattern, a gap) that justifies that signal's score.
 - "verdict" must be exactly one of: "High Confidence", "Mostly Credible", "Mixed Evidence", "Low Credibility", "Unverifiable".
 - "summary" must be 1–2 plain-English sentences.
 - Signals are integers 0–25 each; "score" is an integer 0–100 roughly equal to the sum of the four signals.
@@ -117,8 +155,14 @@ Return JSON matching exactly this shape:
     "fact_check_match": 0,
     "manipulation_language": 0
   },
+  "signal_explanations": {
+    "source_credibility": "One-sentence reason",
+    "claim_corroboration": "One-sentence reason",
+    "fact_check_match": "One-sentence reason",
+    "manipulation_language": "One-sentence reason"
+  },
   "claims": [
-    { "claim": "Claim text", "status": "Supported", "source": "Model assessment" }
+    { "claim": "Claim text", "status": "Supported", "relevance": "Central", "note": "One-sentence reason", "source": "Model assessment" }
   ]
 }
 
@@ -151,8 +195,10 @@ export async function callClaude(prompt: string): Promise<string> {
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 1024,
-    temperature: 0.2,
+    // Explanations + notes lengthen the response; 1536 leaves headroom.
+    max_tokens: 1536,
+    // 0 for maximum run-to-run stability of statuses and scores.
+    temperature: 0,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -217,10 +263,18 @@ function safeFallback(
       fact_check_match: 0,
       manipulation_language: 0,
     },
+    signal_explanations: {
+      source_credibility: "Analysis failed, so no signal could be assessed.",
+      claim_corroboration: "Analysis failed, so no signal could be assessed.",
+      fact_check_match: "Analysis failed, so no signal could be assessed.",
+      manipulation_language: "Analysis failed, so no signal could be assessed.",
+    },
     claims: [
       {
         claim: "No claims could be extracted from the provided text.",
         status: "Unverified",
+        relevance: "Central",
+        note: "The analysis did not complete, so no claims were assessed.",
         source: "Model assessment",
       },
     ],
@@ -267,17 +321,34 @@ export function parseModelResponse(
 
   const score = clampScore(data.score);
 
+  // Most important claims first: Central, then Supporting, then Peripheral.
+  // Stable sort preserves the model's own ordering within each tier.
+  const relevanceRank = (r: (typeof CLAIM_RELEVANCE)[number]) =>
+    CLAIM_RELEVANCE.indexOf(r);
+  const claims = data.claims
+    .slice(0, 5)
+    .map((c) => ({
+      claim: c.claim.trim(),
+      status: c.status,
+      relevance: c.relevance,
+      note: c.note.trim(),
+      source: (c.source ?? "Model assessment").trim() || "Model assessment",
+    }))
+    .sort((a, b) => relevanceRank(a.relevance) - relevanceRank(b.relevance));
+
   return {
     score,
     verdict: VERDICTS.includes(data.verdict) ? data.verdict : scoreToVerdict(score),
     summary: data.summary.trim(),
     election_related: electionRelated || data.election_related,
     signals,
-    claims: data.claims.slice(0, 5).map((c) => ({
-      claim: c.claim.trim(),
-      status: c.status,
-      source: (c.source ?? "Model assessment").trim() || "Model assessment",
-    })),
+    signal_explanations: {
+      source_credibility: data.signal_explanations.source_credibility.trim(),
+      claim_corroboration: data.signal_explanations.claim_corroboration.trim(),
+      fact_check_match: data.signal_explanations.fact_check_match.trim(),
+      manipulation_language: data.signal_explanations.manipulation_language.trim(),
+    },
+    claims,
   };
 }
 

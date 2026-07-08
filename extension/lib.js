@@ -22,6 +22,9 @@ export const VERDICTS = [
 
 const CLAIM_STATUSES = ["Supported", "Disputed", "Unverified"];
 
+// Claim importance tiers, most important first (port of lib/types.ts).
+export const CLAIM_RELEVANCE = ["Central", "Supporting", "Peripheral"];
+
 export const ANALYSIS_FAILED_PREFIX = "Analysis could not be completed";
 
 // ---------------------------------------------------------------------------
@@ -160,6 +163,42 @@ export const MBFC_DATA = [
 
 const BY_DOMAIN = new Map(MBFC_DATA.map((entry) => [entry.domain, entry]));
 
+// ccTLDs where the registrable name sits one label deeper (dailymail.CO.UK).
+const MULTI_PART_TLDS = new Set([
+  "co.uk", "org.uk", "ac.uk", "gov.uk",
+  "com.au", "net.au", "org.au",
+  "co.nz", "co.jp", "co.in", "co.za",
+  "com.br", "com.mx",
+]);
+
+// "dailymail.co.uk" -> "dailymail"; "cnn.com" -> "cnn"; null if too short.
+function brandLabel(host) {
+  const parts = host.split(".");
+  if (parts.length < 2) return null;
+  const suffixLen = MULTI_PART_TLDS.has(parts.slice(-2).join(".")) ? 2 : 1;
+  if (parts.length < suffixLen + 1) return null;
+  return parts[parts.length - suffixLen - 1];
+}
+
+// Brand -> rating so TLD variants (dailymail.com vs dailymail.co.uk) still
+// match. Brands mapping to more than one distinct outlet are dropped.
+const BY_BRAND = (() => {
+  const map = new Map();
+  const ambiguous = new Set();
+  for (const entry of MBFC_DATA) {
+    const brand = brandLabel(entry.domain);
+    if (!brand) continue;
+    const existing = map.get(brand);
+    if (existing && existing.name !== entry.name) {
+      ambiguous.add(brand);
+      continue;
+    }
+    if (!existing) map.set(brand, entry);
+  }
+  for (const brand of ambiguous) map.delete(brand);
+  return map;
+})();
+
 const FACTUAL_TO_SCORE = {
   "Very High": 25,
   High: 22,
@@ -200,6 +239,12 @@ export function lookupMbfc(domain) {
     const match = BY_DOMAIN.get(parts.slice(i).join("."));
     if (match) return match;
   }
+
+  const brand = brandLabel(host);
+  if (brand) {
+    const match = BY_BRAND.get(brand);
+    if (match) return match;
+  }
   return null;
 }
 
@@ -214,11 +259,23 @@ export function applyMbfcOverride(result, mbfc) {
 
   let score = clampScore(result.score - previousSource + mbfcScore);
   const cap = CREDIBILITY_CAP[mbfc.credibility];
-  if (score > cap) score = cap;
+  const capped = score > cap;
+  if (capped) score = cap;
+
+  const sourceExplanation =
+    `Media Bias/Fact Check rates ${mbfc.name} "${mbfc.factualReporting}" for factual reporting ` +
+    `(${mbfc.credibility} credibility), which sets this signal deterministically.` +
+    (capped
+      ? ` The overall score is also capped at ${cap} because of the outlet's ${mbfc.credibility} credibility rating.`
+      : "");
 
   return {
     ...result,
     signals,
+    signal_explanations: {
+      ...(result.signal_explanations || {}),
+      source_credibility: sourceExplanation,
+    },
     score,
     verdict: scoreToVerdict(score),
     mbfc,
@@ -263,14 +320,27 @@ export function buildAnalysisPrompt({ text, domain, electionRelated, mbfc }) {
     ? "ELECTION CONTEXT: This article appears election- or voting-related. Apply extra scrutiny to voting procedures, deadlines, and eligibility claims."
     : "ELECTION CONTEXT: Not detected.";
 
+  const today = new Date().toISOString().slice(0, 10);
+
   return `You are a careful credibility analyst for a news-literacy tool.
 
 Your task: evaluate the article below and return ONE JSON object only. No prose, no markdown fences, no commentary.
 
+TODAY'S DATE: ${today}. Your training data may end before this date. Do NOT treat article dates on or before today as anachronistic, fictional, or "in the future", and do not penalize the article for describing recent events you have no record of.
+
 Rules:
 - Focus on checkable factual claims (people, events, numbers, procedures) — not opinions or predictions.
-- Extract between 3 and 5 claims. Never fewer than 3, never more than 5.
+- Extract between 3 and 5 claims. Never fewer than 3, never more than 5. Prefer the claims most central to the article's main story.
 - Each claim's "status" must be exactly one of: "Supported", "Disputed", "Unverified".
+  - "Supported": consistent with your knowledge or clearly evidenced within the article.
+  - "Disputed": contradicts your knowledge or is contested by credible sources.
+  - "Unverified": you cannot confirm or deny it (e.g. very recent events). Recency alone is NOT grounds for "Disputed".
+- Each claim's "relevance" must be exactly one of: "Central", "Supporting", "Peripheral".
+  - "Central": carries the article's main story (its headline topic).
+  - "Supporting": adds context or detail to the main story.
+  - "Peripheral": an aside — celebrity sightings, trivia, promotions, or anything that could be deleted without changing the main story.
+- Each claim's "note" is ONE short sentence explaining the status and relevance call.
+- Each entry in "signal_explanations" is ONE short plain-English sentence a general reader can understand, citing something concrete about THIS article (a phrase, a pattern, a gap) that justifies that signal's score.
 - "verdict" must be exactly one of: "High Confidence", "Mostly Credible", "Mixed Evidence", "Low Credibility", "Unverifiable".
 - "summary" must be 1–2 plain-English sentences.
 - Signals are integers 0–25 each; "score" is an integer 0–100 roughly equal to the sum of the four signals.
@@ -289,8 +359,14 @@ Return JSON matching exactly this shape:
     "fact_check_match": 0,
     "manipulation_language": 0
   },
+  "signal_explanations": {
+    "source_credibility": "One-sentence reason",
+    "claim_corroboration": "One-sentence reason",
+    "fact_check_match": "One-sentence reason",
+    "manipulation_language": "One-sentence reason"
+  },
   "claims": [
-    { "claim": "Claim text", "status": "Supported", "source": "Model assessment" }
+    { "claim": "Claim text", "status": "Supported", "relevance": "Central", "note": "One-sentence reason", "source": "Model assessment" }
   ]
 }
 
@@ -352,10 +428,18 @@ function safeFallback(electionRelated, reason) {
       fact_check_match: 0,
       manipulation_language: 0,
     },
+    signal_explanations: {
+      source_credibility: "Analysis failed, so no signal could be assessed.",
+      claim_corroboration: "Analysis failed, so no signal could be assessed.",
+      fact_check_match: "Analysis failed, so no signal could be assessed.",
+      manipulation_language: "Analysis failed, so no signal could be assessed.",
+    },
     claims: [
       {
         claim: "No claims could be extracted from the provided text.",
         status: "Unverified",
+        relevance: "Central",
+        note: "The analysis did not complete, so no claims were assessed.",
         source: "Model assessment",
       },
     ],
@@ -419,6 +503,30 @@ export function parseModelResponse(raw, electionRelated) {
 
   const score = clampScore(parsed.score);
 
+  const rawExplanations =
+    parsed.signal_explanations && typeof parsed.signal_explanations === "object"
+      ? parsed.signal_explanations
+      : {};
+  const explanationOf = (key) =>
+    typeof rawExplanations[key] === "string" ? rawExplanations[key].trim() : "";
+
+  // Most important claims first: Central -> Supporting -> Peripheral.
+  const relevanceRank = (r) => {
+    const i = CLAIM_RELEVANCE.indexOf(r);
+    return i === -1 ? 1 : i;
+  };
+  const claims = parsed.claims
+    .slice(0, 5)
+    .map((c) => ({
+      claim: c.claim.trim(),
+      status: c.status,
+      relevance: CLAIM_RELEVANCE.includes(c.relevance) ? c.relevance : "Supporting",
+      note: typeof c.note === "string" ? c.note.trim() : "",
+      source:
+        (typeof c.source === "string" && c.source.trim()) || "Model assessment",
+    }))
+    .sort((a, b) => relevanceRank(a.relevance) - relevanceRank(b.relevance));
+
   return {
     score,
     verdict: VERDICTS.includes(parsed.verdict)
@@ -427,12 +535,13 @@ export function parseModelResponse(raw, electionRelated) {
     summary: parsed.summary.trim(),
     election_related: electionRelated || parsed.election_related,
     signals,
-    claims: parsed.claims.slice(0, 5).map((c) => ({
-      claim: c.claim.trim(),
-      status: c.status,
-      source:
-        (typeof c.source === "string" && c.source.trim()) || "Model assessment",
-    })),
+    signal_explanations: {
+      source_credibility: explanationOf("source_credibility"),
+      claim_corroboration: explanationOf("claim_corroboration"),
+      fact_check_match: explanationOf("fact_check_match"),
+      manipulation_language: explanationOf("manipulation_language"),
+    },
+    claims,
   };
 }
 
@@ -462,8 +571,10 @@ async function callClaude(prompt, apiKey) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1024,
-        temperature: 0.2,
+        // Explanations + notes lengthen the response; 1536 leaves headroom.
+        max_tokens: 1536,
+        // 0 for maximum run-to-run stability of statuses and scores.
+        temperature: 0,
         messages: [{ role: "user", content: prompt }],
       }),
     });

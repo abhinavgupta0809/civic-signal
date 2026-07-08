@@ -235,6 +235,7 @@ function render(result, { cached, source }) {
   // Signals
   els.signals.innerHTML = "";
   const signals = result.signals || {};
+  const explanations = result.signal_explanations || {};
   for (const key of Object.keys(SIGNAL_LABELS)) {
     const value = Number(signals[key] ?? 0);
     const pct = Math.max(0, Math.min(100, (value / 25) * 100));
@@ -254,6 +255,13 @@ function render(result, { cached, source }) {
       ? `${SIGNAL_LABELS[key]} · MBFC verified`
       : SIGNAL_LABELS[key];
     row.querySelector(".signal-value").textContent = `${value} / 25`;
+    const why = typeof explanations[key] === "string" ? explanations[key].trim() : "";
+    if (why) {
+      const p = document.createElement("p");
+      p.className = "signal-why";
+      p.textContent = why;
+      row.appendChild(p);
+    }
     els.signals.appendChild(row);
   }
 
@@ -266,6 +274,11 @@ function render(result, { cached, source }) {
     li.innerHTML = `<p class="claim-text">No claims were extracted.</p>`;
     els.claims.appendChild(li);
   } else {
+    const RELEVANCE_LABELS = {
+      Central: "Core claim",
+      Supporting: "Context",
+      Peripheral: "Side note",
+    };
     for (const c of claims) {
       const li = document.createElement("li");
       li.className = "claim";
@@ -277,10 +290,25 @@ function render(result, { cached, source }) {
             : "amber";
       li.innerHTML = `
         <span class="pill ${pillColor}"></span>
-        <p class="claim-text"></p>
+        <div class="claim-body">
+          <p class="claim-text"></p>
+        </div>
       `;
       li.querySelector(".pill").textContent = c.status || "Unverified";
       li.querySelector(".claim-text").textContent = c.claim || "";
+      const body = li.querySelector(".claim-body");
+      if (RELEVANCE_LABELS[c.relevance]) {
+        const tag = document.createElement("span");
+        tag.className = `relevance-tag ${String(c.relevance).toLowerCase()}`;
+        tag.textContent = RELEVANCE_LABELS[c.relevance];
+        body.appendChild(tag);
+      }
+      if (c.note) {
+        const note = document.createElement("p");
+        note.className = "claim-note";
+        note.textContent = c.note;
+        body.appendChild(note);
+      }
       els.claims.appendChild(li);
     }
   }

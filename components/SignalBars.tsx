@@ -1,10 +1,11 @@
 "use client";
 
 import { mbfcSearchUrl } from "@/lib/mbfc";
-import type { MbfcRating, Signals } from "@/lib/types";
+import type { MbfcRating, SignalExplanations, Signals } from "@/lib/types";
 
 interface SignalBarsProps {
   signals: Signals;
+  explanations?: SignalExplanations;
   mbfc?: MbfcRating | null;
 }
 
@@ -49,7 +50,7 @@ function barStyles(value: number): { bar: string; value: string } {
   };
 }
 
-export function SignalBars({ signals, mbfc }: SignalBarsProps) {
+export function SignalBars({ signals, explanations, mbfc }: SignalBarsProps) {
   return (
     <section className="animate-slide-up rounded-2xl border border-border bg-card-subtle p-6 shadow-sm md:p-8">
       <h2 className="border-b border-border pb-3 font-serif text-2xl font-semibold text-foreground">
@@ -61,6 +62,7 @@ export function SignalBars({ signals, mbfc }: SignalBarsProps) {
           const pct = Math.max(0, Math.min(100, (value / 25) * 100));
           const styles = barStyles(value);
           const isMbfcVerified = key === "source_credibility" && !!mbfc;
+          const explanation = explanations?.[key]?.trim();
           return (
             <div key={key}>
               <div className="flex items-end justify-between gap-4">
@@ -105,6 +107,12 @@ export function SignalBars({ signals, mbfc }: SignalBarsProps) {
                   style={{ width: `${pct}%` }}
                 />
               </div>
+              {explanation && (
+                <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                  <span className="font-semibold text-foreground/70">Why: </span>
+                  {explanation}
+                </p>
+              )}
             </div>
           );
         })}
@@ -123,6 +131,33 @@ export function SignalBars({ signals, mbfc }: SignalBarsProps) {
           , not estimated by the model.
         </p>
       )}
+      <details className="group mt-6 rounded-xl border border-border bg-card p-4">
+        <summary className="cursor-pointer select-none text-sm font-semibold text-foreground transition-colors hover:text-primary">
+          How is this scored?
+        </summary>
+        <div className="mt-3 space-y-2 text-[13px] leading-relaxed text-muted">
+          <p>
+            The overall score (0–100) is roughly the sum of the four signals
+            above, each worth 0–25 points. Verdict bands: 80+ High Confidence,
+            60–79 Mostly Credible, 40–59 Mixed Evidence, 20–39 Low Credibility,
+            below 20 Unverifiable.
+          </p>
+          <p>
+            <span className="font-medium text-foreground/80">Source credibility</span>{" "}
+            uses Media Bias/Fact Check&apos;s human-reviewed rating when the
+            outlet is recognized — it is deterministic, not AI-estimated, and a
+            low-credibility outlet also caps the overall score. When the outlet
+            isn&apos;t recognized, the AI estimates cautiously from the text alone.
+          </p>
+          <p>
+            <span className="font-medium text-foreground/80">The other three signals</span>{" "}
+            are the AI model&apos;s judgment of this article against its general
+            knowledge. It does not search the live web, so corroboration of very
+            recent events may show as &quot;Unverified&quot; — that means
+            &quot;couldn&apos;t confirm&quot;, not &quot;false&quot;.
+          </p>
+        </div>
+      </details>
     </section>
   );
 }

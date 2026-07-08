@@ -1,11 +1,33 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { Claim, ClaimStatus } from "@/lib/types";
+import { CLAIM_RELEVANCE } from "@/lib/types";
+import type { Claim, ClaimRelevance, ClaimStatus } from "@/lib/types";
 
 interface ClaimsListProps {
   claims: Claim[];
 }
+
+const RELEVANCE_STYLES: Record<
+  ClaimRelevance,
+  { label: string; pill: string; description: string }
+> = {
+  Central: {
+    label: "Core claim",
+    pill: "bg-primary/10 text-primary border-primary/25",
+    description: "Carries the article's main story",
+  },
+  Supporting: {
+    label: "Context",
+    pill: "bg-sky-600/10 text-sky-700 border-sky-600/25 dark:bg-sky-400/10 dark:text-sky-300 dark:border-sky-400/25",
+    description: "Adds detail to the main story",
+  },
+  Peripheral: {
+    label: "Side note",
+    pill: "bg-border/40 text-muted border-border",
+    description: "Aside that doesn't affect the main story",
+  },
+};
 
 const STATUS_STYLES: Record<ClaimStatus, { pill: string; icon: ReactNode }> = {
   Supported: {
@@ -49,18 +71,34 @@ const STATUS_STYLES: Record<ClaimStatus, { pill: string; icon: ReactNode }> = {
 export function ClaimsList({ claims }: ClaimsListProps) {
   if (claims.length === 0) return null;
 
+  // Most important first: Central -> Supporting -> Peripheral. The API sorts
+  // already, but sorting here too keeps older cached results consistent.
+  const sorted = [...claims].sort(
+    (a, b) =>
+      CLAIM_RELEVANCE.indexOf(a.relevance ?? "Supporting") -
+      CLAIM_RELEVANCE.indexOf(b.relevance ?? "Supporting")
+  );
+
   return (
     <section className="animate-slide-up rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
       <h2 className="border-b border-border pb-3 font-serif text-2xl font-semibold text-foreground">
         Identified claims
       </h2>
-      <ul className="mt-5 flex flex-col gap-3">
-        {claims.map((c, idx) => {
+      <p className="mt-3 text-[13px] text-muted">
+        Ranked by importance to the article&apos;s main story — core claims
+        first, side notes last.
+      </p>
+      <ul className="mt-4 flex flex-col gap-3">
+        {sorted.map((c, idx) => {
           const styles = STATUS_STYLES[c.status];
+          const relevance = RELEVANCE_STYLES[c.relevance ?? "Supporting"];
+          const isPeripheral = c.relevance === "Peripheral";
           return (
             <li
               key={idx}
-              className="flex flex-col gap-3 rounded-xl border border-transparent bg-background p-4 transition-colors hover:border-border sm:flex-row sm:items-start sm:gap-4"
+              className={`flex flex-col gap-3 rounded-xl border border-transparent bg-background p-4 transition-colors hover:border-border sm:flex-row sm:items-start sm:gap-4 ${
+                isPeripheral ? "opacity-75" : ""
+              }`}
             >
               <span
                 className={`inline-flex h-fit shrink-0 items-center gap-1 rounded border px-2 py-1 text-xs font-semibold ${styles.pill}`}
@@ -72,10 +110,21 @@ export function ClaimsList({ claims }: ClaimsListProps) {
                 <p className="text-[15px] leading-relaxed text-foreground">
                   {c.claim}
                 </p>
+                {c.note && (
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted">
+                    {c.note}
+                  </p>
+                )}
                 {c.source && c.source !== "Model assessment" && (
                   <p className="mt-1 text-xs text-muted">Source: {c.source}</p>
                 )}
               </div>
+              <span
+                title={relevance.description}
+                className={`inline-flex h-fit shrink-0 items-center rounded border px-2 py-1 text-[11px] font-semibold ${relevance.pill}`}
+              >
+                {relevance.label}
+              </span>
             </li>
           );
         })}

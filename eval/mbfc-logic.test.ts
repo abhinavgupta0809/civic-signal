@@ -26,7 +26,21 @@ function baseResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
       fact_check_match: 23,
       manipulation_language: 23,
     },
-    claims: [{ claim: "An example claim.", status: "Supported", source: "Model assessment" }],
+    signal_explanations: {
+      source_credibility: "Established outlet with a strong track record.",
+      claim_corroboration: "Claims align with widely reported facts.",
+      fact_check_match: "No contradicting fact-checks found.",
+      manipulation_language: "Neutral, factual tone throughout.",
+    },
+    claims: [
+      {
+        claim: "An example claim.",
+        status: "Supported",
+        relevance: "Central",
+        note: "Core of the story and consistent with known facts.",
+        source: "Model assessment",
+      },
+    ],
     ...overrides,
   };
 }

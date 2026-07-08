@@ -106,6 +106,49 @@ const BY_DOMAIN = new Map<string, MbfcRating>(
 );
 
 /**
+ * Country-code TLDs where the registrable name sits one label deeper
+ * (e.g. dailymail.CO.UK -> brand "dailymail"). Small curated list; enough
+ * for the outlets in the snapshot.
+ */
+const MULTI_PART_TLDS = new Set([
+  "co.uk", "org.uk", "ac.uk", "gov.uk",
+  "com.au", "net.au", "org.au",
+  "co.nz", "co.jp", "co.in", "co.za",
+  "com.br", "com.mx",
+]);
+
+/** "dailymail.co.uk" -> "dailymail"; "cnn.com" -> "cnn"; null if too short. */
+function brandLabel(host: string): string | null {
+  const parts = host.split(".");
+  if (parts.length < 2) return null;
+  const suffixLen = MULTI_PART_TLDS.has(parts.slice(-2).join(".")) ? 2 : 1;
+  if (parts.length < suffixLen + 1) return null;
+  return parts[parts.length - suffixLen - 1];
+}
+
+/**
+ * Brand name -> rating, so a lookup still matches when only the TLD differs
+ * (dailymail.com vs the dataset's dailymail.co.uk). Brands that map to more
+ * than one distinct outlet are dropped as ambiguous.
+ */
+const BY_BRAND = (() => {
+  const map = new Map<string, MbfcRating>();
+  const ambiguous = new Set<string>();
+  for (const entry of MBFC_DATA) {
+    const brand = brandLabel(entry.domain);
+    if (!brand) continue;
+    const existing = map.get(brand);
+    if (existing && existing.name !== entry.name) {
+      ambiguous.add(brand);
+      continue;
+    }
+    if (!existing) map.set(brand, entry);
+  }
+  for (const brand of ambiguous) map.delete(brand);
+  return map;
+})();
+
+/**
  * MBFC factual-reporting level → deterministic source-credibility points (0–25).
  * These are fixed, not model-generated, so this signal is fully auditable.
  */
@@ -153,7 +196,9 @@ export function normalizeDomain(input: string): string {
 /**
  * Looks up a domain in the MBFC dataset. Tries an exact host match first,
  * then progressively drops leftmost subdomain labels so that, e.g.,
- * "edition.cnn.com" still resolves to the "cnn.com" entry.
+ * "edition.cnn.com" still resolves to the "cnn.com" entry. As a final
+ * fallback it matches on the brand name alone, so a TLD variant the dataset
+ * doesn't list (dailymail.com vs dailymail.co.uk) still resolves.
  */
 export function lookupMbfc(domain?: string | null): MbfcRating | null {
   if (!domain) return null;
@@ -167,6 +212,12 @@ export function lookupMbfc(domain?: string | null): MbfcRating | null {
   for (let i = 1; i < parts.length - 1; i++) {
     const candidate = parts.slice(i).join(".");
     const match = BY_DOMAIN.get(candidate);
+    if (match) return match;
+  }
+
+  const brand = brandLabel(host);
+  if (brand) {
+    const match = BY_BRAND.get(brand);
     if (match) return match;
   }
   return null;
@@ -205,11 +256,25 @@ export function applyMbfcOverride(
 
   let score = clampScore(result.score - previousSource + mbfcScore);
   const cap = CREDIBILITY_CAP[mbfc.credibility];
-  if (score > cap) score = cap;
+  const capped = score > cap;
+  if (capped) score = cap;
+
+  // The source-credibility explanation reflects the authoritative MBFC rating
+  // (not the model's guess), and discloses when the overall score was capped.
+  const sourceExplanation =
+    `Media Bias/Fact Check rates ${mbfc.name} "${mbfc.factualReporting}" for factual reporting ` +
+    `(${mbfc.credibility} credibility), which sets this signal deterministically.` +
+    (capped
+      ? ` The overall score is also capped at ${cap} because of the outlet's ${mbfc.credibility} credibility rating.`
+      : "");
 
   return {
     ...result,
     signals,
+    signal_explanations: {
+      ...result.signal_explanations,
+      source_credibility: sourceExplanation,
+    },
     score,
     verdict: scoreToVerdict(score),
     mbfc,

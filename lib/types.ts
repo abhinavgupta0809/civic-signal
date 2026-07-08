@@ -13,6 +13,16 @@ export const CLAIM_STATUSES = ["Supported", "Disputed", "Unverified"] as const;
 export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
 
 /**
+ * How central a claim is to the article's main story, highest first.
+ * "Central" claims carry the article's core narrative; "Supporting" claims add
+ * context to it; "Peripheral" claims are asides (celebrity mentions, trivia,
+ * cross-promotion) that don't affect the main story's credibility.
+ */
+export const CLAIM_RELEVANCE = ["Central", "Supporting", "Peripheral"] as const;
+
+export type ClaimRelevance = (typeof CLAIM_RELEVANCE)[number];
+
+/**
  * Media Bias / Fact Check "Factual Reporting" levels, highest to lowest.
  * This is MBFC's primary measure of how accurately a source reports.
  */
@@ -60,10 +70,26 @@ export interface Signals {
   manipulation_language: number;
 }
 
+/**
+ * One plain-English sentence per signal explaining why it got its score.
+ * Written by the model, except source_credibility which is replaced with
+ * MBFC-derived text when a rating matched.
+ */
+export interface SignalExplanations {
+  source_credibility: string;
+  claim_corroboration: string;
+  fact_check_match: string;
+  manipulation_language: string;
+}
+
 export interface Claim {
   claim: string;
   status: ClaimStatus;
   source: string;
+  /** How central this claim is to the article's main story. */
+  relevance: ClaimRelevance;
+  /** Short reason for the status/relevance call, e.g. "Aside about a celebrity attendee, unrelated to the match report." */
+  note: string;
 }
 
 export interface AnalysisResult {
@@ -72,6 +98,8 @@ export interface AnalysisResult {
   summary: string;
   election_related: boolean;
   signals: Signals;
+  /** Per-signal reasoning shown under each bar in the UI. */
+  signal_explanations: SignalExplanations;
   claims: Claim[];
   /**
    * Present when the source domain matched a curated MBFC entry. When set,
