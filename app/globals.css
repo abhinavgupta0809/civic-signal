@@ -2,11 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * "Modern Editorial Authority" design tokens (from the Stitch design system).
+ * Light theme: warm paper surfaces + near-black ink + restrained emerald.
+ * Dark theme: deep charcoal-green surfaces with the emerald lifted for contrast.
+ * Values are space-separated RGB channels so Tailwind can apply alpha.
+ */
 :root {
-  --background: 250 250 251;
-  --foreground: 17 24 39;
-  --muted: 107 114 128;
-  --border: 229 231 235;
+  --background: 245 251 245; /* #f5fbf5 surface */
+  --foreground: 23 29 25; /* #171d19 ink */
+  --muted: 61 74 66; /* #3d4a42 on-surface-variant */
+  --border: 188 202 192; /* #bccac0 outline-variant */
+  --card: 255 255 255; /* #ffffff surface-container-lowest */
+  --card-subtle: 239 245 239; /* #eff5ef surface-container-low */
+  --skeleton: 222 228 222; /* #dee4de surface-variant */
+  --primary: 0 105 72; /* #006948 emerald */
+  --primary-strong: 0 82 56;
+  --on-primary: 255 255 255;
+}
+
+.dark {
+  --background: 16 22 19;
+  --foreground: 236 242 236; /* #ecf2ec */
+  --muted: 169 182 174;
+  --border: 51 64 58;
+  --card: 26 32 29;
+  --card-subtle: 22 28 25;
+  --skeleton: 42 52 47;
+  --primary: 104 219 169; /* #68dba9 inverse-primary */
+  --primary-strong: 133 248 196;
+  --on-primary: 0 33 20; /* #002114 */
 }
 
 html,
@@ -24,9 +49,9 @@ body {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgb(var(--border) / 0.4) 0%,
-    rgb(var(--border) / 0.7) 50%,
-    rgb(var(--border) / 0.4) 100%
+    rgb(var(--skeleton) / 0.55) 0%,
+    rgb(var(--skeleton) / 0.95) 50%,
+    rgb(var(--skeleton) / 0.55) 100%
   );
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
@@ -39,5 +64,16 @@ body {
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+/* Circular score gauge stroke draws in on mount. */
+.gauge-arc {
+  animation: gauge-progress 1s ease-out forwards;
+}
+
+@keyframes gauge-progress {
+  0% {
+    stroke-dasharray: 0 100;
   }
 }

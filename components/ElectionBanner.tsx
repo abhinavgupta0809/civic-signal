@@ -4,10 +4,10 @@ export function ElectionBanner() {
   return (
     <div
       role="alert"
-      className="animate-fade-in flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900"
+      className="animate-fade-in flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
     >
       <svg
-        className="mt-0.5 h-5 w-5 shrink-0 text-amber-600"
+        className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
         viewBox="0 0 20 20"
         fill="currentColor"
         aria-hidden="true"
@@ -19,8 +19,8 @@ export function ElectionBanner() {
         />
       </svg>
       <div className="text-sm leading-relaxed">
-        <div className="font-semibold">Election-related content detected</div>
-        <p className="mt-0.5 text-amber-900/90">
+        <div className="font-bold text-foreground">Election-related content</div>
+        <p className="mt-0.5 text-muted">
           Apply extra scrutiny before sharing. For voting procedures, deadlines,
           or eligibility questions, verify against your official state election
           website.

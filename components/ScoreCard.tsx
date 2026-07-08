@@ -12,32 +12,31 @@ interface ScoreCardProps {
 
 const COLOR_STYLES: Record<
   ReturnType<typeof scoreToColor>,
-  { text: string; ring: string; badge: string; dot: string }
+  { text: string; stroke: string; badge: string }
 > = {
   green: {
-    text: "text-emerald-600",
-    ring: "ring-emerald-200 bg-emerald-50",
-    badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    dot: "bg-emerald-500",
+    text: "text-emerald-600 dark:text-emerald-400",
+    stroke: "stroke-emerald-600 dark:stroke-emerald-400",
+    badge:
+      "bg-emerald-600/10 text-emerald-700 border-emerald-600/25 dark:bg-emerald-400/10 dark:text-emerald-300 dark:border-emerald-400/25",
   },
   amber: {
-    text: "text-amber-600",
-    ring: "ring-amber-200 bg-amber-50",
-    badge: "bg-amber-100 text-amber-800 border-amber-200",
-    dot: "bg-amber-500",
+    text: "text-amber-600 dark:text-amber-400",
+    stroke: "stroke-amber-600 dark:stroke-amber-400",
+    badge:
+      "bg-amber-600/10 text-amber-700 border-amber-600/25 dark:bg-amber-400/10 dark:text-amber-300 dark:border-amber-400/25",
   },
   red: {
-    text: "text-rose-600",
-    ring: "ring-rose-200 bg-rose-50",
-    badge: "bg-rose-100 text-rose-800 border-rose-200",
-    dot: "bg-rose-500",
+    text: "text-rose-600 dark:text-rose-400",
+    stroke: "stroke-rose-600 dark:stroke-rose-400",
+    badge:
+      "bg-rose-600/10 text-rose-700 border-rose-600/25 dark:bg-rose-400/10 dark:text-rose-300 dark:border-rose-400/25",
   },
 };
 
 export function ScoreCard({ score, verdict, summary }: ScoreCardProps) {
   const [displayScore, setDisplayScore] = useState(0);
-  const color = scoreToColor(score);
-  const styles = COLOR_STYLES[color];
+  const styles = COLOR_STYLES[scoreToColor(score)];
 
   useEffect(() => {
     const duration = 700;
@@ -54,37 +53,48 @@ export function ScoreCard({ score, verdict, summary }: ScoreCardProps) {
   }, [score]);
 
   return (
-    <section className="animate-slide-up rounded-2xl border border-border bg-white p-8 shadow-sm">
-      <div className="flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-6">
-          <div
-            className={`flex h-32 w-32 items-center justify-center rounded-full ring-8 ${styles.ring}`}
-          >
-            <div className="text-center">
-              <div className={`text-5xl font-semibold leading-none ${styles.text}`}>
-                {displayScore}
-              </div>
-              <div className="mt-1 text-xs font-medium uppercase tracking-wider text-muted">
-                / 100
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted">
-              Credibility score
-            </div>
-            <span
-              className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${styles.badge}`}
-            >
-              <span className={`h-2 w-2 rounded-full ${styles.dot}`} />
-              {verdict}
-            </span>
-          </div>
+    <section className="animate-slide-up flex flex-col items-center gap-8 rounded-2xl border border-border bg-card p-8 shadow-sm md:flex-row">
+      <div className="relative h-44 w-44 shrink-0">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36" aria-hidden="true">
+          <path
+            className="fill-none stroke-border/60"
+            strokeWidth="3.8"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+          <path
+            className={`gauge-arc fill-none ${styles.stroke}`}
+            strokeWidth="2.8"
+            strokeLinecap="round"
+            strokeDasharray={`${Math.max(0, Math.min(100, score))}, 100`}
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`font-serif text-5xl font-bold leading-none ${styles.text}`}>
+            {displayScore}
+          </span>
+          <span className="mt-1 text-xs font-semibold text-muted">/100</span>
         </div>
       </div>
-      <p className="mt-6 text-[15px] leading-relaxed text-foreground/80">
-        {summary}
-      </p>
+
+      <div className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold ${styles.badge}`}
+        >
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path
+              fillRule="evenodd"
+              d="M16.403 12.652a3 3 0 0 0 0-5.304 3 3 0 0 0-3.75-3.751 3 3 0 0 0-5.305 0 3 3 0 0 0-3.751 3.75 3 3 0 0 0 0 5.305 3 3 0 0 0 3.75 3.751 3 3 0 0 0 5.305 0 3 3 0 0 0 3.751-3.75Zm-2.546-4.46a.75.75 0 0 0-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          {verdict}
+        </span>
+        <h2 className="mt-2 font-serif text-2xl font-semibold text-foreground">
+          Credibility assessment
+        </h2>
+        <p className="text-[15px] leading-relaxed text-muted">{summary}</p>
+      </div>
     </section>
   );
 }

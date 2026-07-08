@@ -17,7 +17,7 @@ export function ExampleLoader({ onLoad, disabled }: ExampleLoaderProps) {
       type="button"
       onClick={() => onLoad(SAMPLE_ARTICLE)}
       disabled={disabled}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground/80 transition hover:bg-muted/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted transition hover:bg-card-subtle hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
     >
       <svg
         className="h-4 w-4"
