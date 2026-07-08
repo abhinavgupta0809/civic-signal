@@ -18,6 +18,30 @@ const MAX_REDIRECTS = 3;
 const MAX_CHARS = 6000; // matches the model input cap in lib/anthropic.ts
 const MIN_USABLE_CHARS = 200;
 
+/**
+ * Browser-like request headers. A generic "bot" user-agent gets 403'd by many
+ * mainstream publishers (Daily Mail, Bloomberg, etc.), so we mirror a normal
+ * desktop Chrome request to retrieve the same public article HTML a reader
+ * would see. This does not bypass paywalls or logins.
+ */
+const BROWSER_HEADERS: Record<string, string> = {
+  "user-agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  accept:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "accept-language": "en-US,en;q=0.9",
+  "cache-control": "no-cache",
+  pragma: "no-cache",
+  "sec-ch-ua": '"Chromium";v="125", "Google Chrome";v="125", "Not-A.Brand";v="99"',
+  "sec-ch-ua-mobile": "?0",
+  "sec-ch-ua-platform": '"macOS"',
+  "sec-fetch-dest": "document",
+  "sec-fetch-mode": "navigate",
+  "sec-fetch-site": "none",
+  "sec-fetch-user": "?1",
+  "upgrade-insecure-requests": "1",
+};
+
 /** Thrown for user-fixable problems (bad URL, blocked host, no readable text). */
 export class ExtractError extends Error {}
 
@@ -133,11 +157,11 @@ async function guardedFetchHtml(startUrl: URL): Promise<{ html: string; finalUrl
       res = await fetch(url, {
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          "user-agent":
-            "Mozilla/5.0 (compatible; CivicSignalBot/1.0; +https://github.com/abhinavgupta0809/civic-signal)",
-          accept: "text/html,application/xhtml+xml",
-        },
+        // Send browser-like headers. Many major news sites (Daily Mail,
+        // Bloomberg, etc.) return 403 to obvious bot user-agents, so we present
+        // as a normal desktop Chrome request to fetch the same public HTML a
+        // reader's browser would get.
+        headers: BROWSER_HEADERS,
       });
     } catch (err) {
       if (err instanceof ExtractError) throw err;
