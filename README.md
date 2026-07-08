@@ -52,6 +52,36 @@ When no rating exists for a domain, the model estimates the signal and the UI sh
 
 ---
 
+## 🧪 Evaluating accuracy — is MBFC actually helping?
+
+A grounding claim is only as good as its evidence, so CivicSignal ships an eval
+system ([`eval/`](eval/)) with two layers.
+
+**Layer 1 — deterministic, free (`npm run eval`).** Vitest checks the snapshot's
+integrity (no duplicate/non-canonical domains, valid enums, factual↔credibility
+consistency) and the scoring logic (`applyMbfcOverride` override + caps + verdict
+re-derivation across *every* entry), then grades the snapshot against an
+**independent gold-label set** ([`eval/fixtures/gold-sources.json`](eval/fixtures/gold-sources.json)).
+Latest run — see [`eval/report/agreement.md`](eval/report/agreement.md):
+
+| Metric | Result |
+| --- | --- |
+| Snapshot vs. gold **agreement** (overlap) | **100%** (43/43) |
+| **Coverage** of the gold set | 82.7% |
+| Dangerous (High↔Low) disagreements | 0 |
+| Coverage gaps surfaced (sources to add) | 9 |
+
+**Layer 2 — live end-to-end ablation (`npm run eval:live`).** Runs a labeled
+corpus through the real pipeline **with MBFC grounding on vs. off** and reports
+the headline result — *how many questionable-source articles the ungrounded model
+lets score as credible, and how the MBFC cap holds them at the Low-Credibility
+band* — plus source separation and verdict accuracy, written to
+`eval/report/latest.md`. (Requires an Anthropic key with credits.)
+
+See [`eval/README.md`](eval/README.md) for the full methodology and honesty notes.
+
+---
+
 ## 🤖 Claude as the core intelligence layer
 
 Claude isn't just an API call here — it's the reasoning engine, used for **structured extraction, scoring, and explainability**, not free-form text.
