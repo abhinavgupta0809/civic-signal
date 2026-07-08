@@ -6,6 +6,7 @@ import {
 } from "@/lib/anthropic";
 import { detectElectionContent } from "@/lib/scoring";
 import { applyMbfcOverride, lookupMbfc } from "@/lib/mbfc";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import type { AnalyzeRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -22,8 +23,15 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-function jsonWithCors(body: unknown, status: number) {
-  return NextResponse.json(body, { status, headers: CORS_HEADERS });
+function jsonWithCors(
+  body: unknown,
+  status: number,
+  extraHeaders?: Record<string, string>
+) {
+  return NextResponse.json(body, {
+    status,
+    headers: { ...CORS_HEADERS, ...extraHeaders },
+  });
 }
 
 export function OPTIONS() {
@@ -52,6 +60,15 @@ export async function POST(req: Request) {
       { error: `Article text is too short (minimum ${MIN_TEXT_LENGTH} characters).` },
       400
     );
+  }
+
+  // Gate the paid Claude call behind rate limits so a public deployment can't
+  // run up the API bill. Checked after cheap validation, before any model call.
+  const rl = checkRateLimit(clientIp(req));
+  if (!rl.ok) {
+    return jsonWithCors({ error: rl.error }, rl.status, {
+      "Retry-After": String(rl.retryAfter),
+    });
   }
 
   const electionRelated = detectElectionContent(text);

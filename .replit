@@ -1,0 +1,30 @@
+# Replit configuration for CivicSignal (Next.js).
+#
+# The Run button starts a dev server for quick previews. The [deployment]
+# block is what serves the stable public URL: it installs, builds, then runs
+# the production server.
+#
+# IMPORTANT: set your key in Replit Secrets (Tools -> Secrets), not in code:
+#   ANTHROPIC_API_KEY = sk-ant-...
+# Optional cost controls (defaults shown) can also be added as Secrets:
+#   RATE_IP_PER_MIN = 8
+#   RATE_IP_PER_DAY = 40
+#   RATE_GLOBAL_PER_DAY = 500
+
+run = "npm run dev"
+entrypoint = "app/page.tsx"
+modules = ["nodejs-20"]
+
+hidden = [".next", "node_modules"]
+
+[env]
+NEXT_TELEMETRY_DISABLED = "1"
+
+[deployment]
+deploymentTarget = "autoscale"
+build = ["sh", "-c", "npm ci && npm run build"]
+run = ["sh", "-c", "npm run start"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80

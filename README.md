@@ -122,6 +122,38 @@ No key is needed for MBFC lookups — the curated dataset ships in `lib/mbfc.ts`
 
 ---
 
+## ☁️ Deploy on Replit
+
+CivicSignal is ready to host on [Replit](https://replit.com) — the repo ships a `.replit`
+config, and `next start` binds to `0.0.0.0` so Replit can serve it.
+
+1. **Import** — In Replit: *Create Repl → Import from GitHub* → paste this repo's URL.
+2. **Add your key as a Secret** — *Tools → Secrets* → add `ANTHROPIC_API_KEY = sk-ant-…`.
+   Never put the key in code; Secrets keeps it server-side.
+3. **Preview** — Click **Run** to start a dev server and open the webview.
+4. **Publish a stable URL** — Click **Deploy** (Autoscale). The `.replit` deployment block
+   already sets *build* = `npm ci && npm run build` and *run* = `npm run start`. Copy the
+   resulting `*.replit.app` URL — you'll point the Chrome extension at it later.
+
+### 💸 Cost protection (built in)
+
+Because a public URL spends **your** Anthropic key on every analysis, `/api/analyze` is rate
+limited out of the box ([`lib/rate-limit.ts`](lib/rate-limit.ts)): per-IP per-minute and
+per-day caps, plus a **global daily budget kill-switch** that hard-stops the service once a
+day's analysis quota is hit. All limits are tunable via Secrets (defaults in parentheses):
+
+| Secret | Default | Meaning |
+| --- | --- | --- |
+| `RATE_IP_PER_MIN` | 8 | Max analyses per IP per minute |
+| `RATE_IP_PER_DAY` | 40 | Max analyses per IP per day |
+| `RATE_GLOBAL_PER_DAY` | 500 | Hard daily cap across all users (budget kill-switch) |
+
+> Limits are stored in-process — perfect for a single Replit instance. If you scale to
+> multiple Autoscale machines, move the counters to a shared store (e.g. Upstash Redis);
+> `lib/rate-limit.ts` is isolated so that swap is localized.
+
+---
+
 ## 🧩 Running the Chrome extension
 
 The Manifest V3 extension in [`extension/`](extension/) is a second UI on top of the same backend. It sends extracted page text to your local `/api/analyze` route, so your API key never leaves the server.
