@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { analyzeArticle } from "@/lib/analyze";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { ExtractError, fetchArticle } from "@/lib/extract";
 import type { AnalyzeRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -40,29 +41,53 @@ export async function POST(req: Request) {
     return jsonWithCors({ error: "Request body must be valid JSON." }, 400);
   }
 
-  const text = typeof body.text === "string" ? body.text.trim() : "";
-  const domain =
-    typeof body.domain === "string" && body.domain.trim().length > 0
-      ? body.domain.trim()
-      : undefined;
+  const url = typeof body.url === "string" && body.url.trim() ? body.url.trim() : "";
 
-  if (!text) {
-    return jsonWithCors({ error: "Please paste article text to analyze." }, 400);
-  }
-  if (text.length < MIN_TEXT_LENGTH) {
-    return jsonWithCors(
-      { error: `Article text is too short (minimum ${MIN_TEXT_LENGTH} characters).` },
-      400
-    );
-  }
-
-  // Gate the paid Claude call behind rate limits so a public deployment can't
-  // run up the API bill. Checked after cheap validation, before any model call.
+  // Gate the paid work (URL fetch + Claude call) behind rate limits so a public
+  // deployment can't run up the API bill or be used to fetch arbitrary URLs.
   const rl = checkRateLimit(clientIp(req));
   if (!rl.ok) {
     return jsonWithCors({ error: rl.error }, rl.status, {
       "Retry-After": String(rl.retryAfter),
     });
+  }
+
+  let text: string;
+  let domain: string | undefined;
+
+  if (url) {
+    // URL-first path: fetch + extract server-side, then derive the domain from
+    // the URL (which auto-enables MBFC grounding).
+    try {
+      const article = await fetchArticle(url);
+      text = article.text;
+      domain = article.domain;
+    } catch (err) {
+      if (err instanceof ExtractError) {
+        return jsonWithCors({ error: err.message }, 400);
+      }
+      return jsonWithCors(
+        { error: "Couldn't read that link. Please paste the article text instead." },
+        502
+      );
+    }
+  } else {
+    // Paste-text path.
+    text = typeof body.text === "string" ? body.text.trim() : "";
+    domain =
+      typeof body.domain === "string" && body.domain.trim().length > 0
+        ? body.domain.trim()
+        : undefined;
+
+    if (!text) {
+      return jsonWithCors({ error: "Please paste article text or a link to analyze." }, 400);
+    }
+    if (text.length < MIN_TEXT_LENGTH) {
+      return jsonWithCors(
+        { error: `Article text is too short (minimum ${MIN_TEXT_LENGTH} characters).` },
+        400
+      );
+    }
   }
 
   let result;

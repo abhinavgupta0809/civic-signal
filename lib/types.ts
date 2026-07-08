@@ -81,8 +81,12 @@ export interface AnalysisResult {
 }
 
 export interface AnalyzeRequest {
-  text: string;
+  /** Raw article text (paste-text path). */
+  text?: string;
+  /** Optional source domain; enables MBFC grounding on the text path. */
   domain?: string;
+  /** Article URL (URL-first path); the server fetches and extracts the text. */
+  url?: string;
 }
 
 export interface AnalyzeErrorResponse {

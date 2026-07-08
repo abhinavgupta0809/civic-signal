@@ -9,6 +9,7 @@ import { ExampleLoader } from "@/components/ExampleLoader";
 import type { AnalysisResult } from "@/lib/types";
 
 export default function HomePage() {
+  const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [domain, setDomain] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,20 +17,26 @@ export default function HomePage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [copied, setCopied] = useState(false);
 
+  const canAnalyze = url.trim().length > 0 || text.trim().length > 0;
+
   const analyze = async () => {
-    if (!text.trim()) {
-      setError("Please paste article text to analyze.");
+    if (!canAnalyze) {
+      setError("Paste an article link or the article text to analyze.");
       return;
     }
     setLoading(true);
     setError(null);
     setResult(null);
     setCopied(false);
+    // A link takes precedence: the server fetches it and auto-detects the domain.
+    const payload = url.trim()
+      ? { url: url.trim() }
+      : { text, domain: domain || undefined };
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, domain: domain || undefined }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -45,6 +52,7 @@ export default function HomePage() {
   };
 
   const reset = () => {
+    setUrl("");
     setText("");
     setDomain("");
     setResult(null);
@@ -80,6 +88,39 @@ export default function HomePage() {
 
       <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
         <label
+          htmlFor="article-url"
+          className="block text-sm font-medium text-foreground"
+        >
+          Article link
+        </label>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+          <input
+            id="article-url"
+            type="url"
+            inputMode="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canAnalyze && !loading) analyze();
+            }}
+            placeholder="https://apnews.com/article/…"
+            disabled={loading}
+            className="min-w-0 flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted/80 focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 disabled:opacity-60"
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-muted">
+          We fetch the page and detect the source automatically to ground the
+          score in MBFC. Paywalled or script-heavy pages may need the text
+          pasted instead.
+        </p>
+
+        <div className="my-5 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-muted">
+          <span className="h-px flex-1 bg-border" />
+          or paste text instead
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <label
           htmlFor="article-text"
           className="block text-sm font-medium text-foreground"
         >
@@ -105,10 +146,10 @@ export default function HomePage() {
             </label>
             <input
               id="domain"
-              value={domain}
+              value={url.trim() ? "" : domain}
               onChange={(e) => setDomain(e.target.value)}
-              placeholder="e.g. apnews.com"
-              disabled={loading}
+              placeholder={url.trim() ? "auto-detected from link" : "e.g. apnews.com"}
+              disabled={loading || url.trim().length > 0}
               className="mt-2 block w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none transition placeholder:text-muted/80 focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 disabled:opacity-60"
             />
           </div>
@@ -119,7 +160,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={analyze}
-            disabled={loading || !text.trim()}
+            disabled={loading || !canAnalyze}
             className="inline-flex items-center gap-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? (
