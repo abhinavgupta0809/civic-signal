@@ -1,0 +1,267 @@
+{
+  "generatedAt": "2026-07-08T10:52:24.357Z",
+  "model": "claude-haiku-4-5",
+  "corpusSize": 15,
+  "headline": {
+    "questionable": 7,
+    "escapedLowBandWithoutMbfc": 3,
+    "heldAtLowBandWithMbfc": 7
+  },
+  "separation": {
+    "reliableMean": 77.8,
+    "questionableMean": 24.4,
+    "gap": 53.4
+  },
+  "verdictAccuracy": {
+    "withMbfc": 8,
+    "withoutMbfc": 10,
+    "total": 15
+  },
+  "election": {
+    "tp": 2,
+    "fp": 0,
+    "fn": 0
+  },
+  "rows": [
+    {
+      "domain": "apnews.com",
+      "group": "reliable",
+      "expectedBand": "Mostly Credible",
+      "electionExpected": false,
+      "mbfcRating": "High / High",
+      "on": {
+        "score": 85,
+        "verdict": "High Confidence",
+        "election": false
+      },
+      "off": {
+        "score": 78,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "reuters.com",
+      "group": "reliable",
+      "expectedBand": "Mostly Credible",
+      "electionExpected": false,
+      "mbfcRating": "High / High",
+      "on": {
+        "score": 75,
+        "verdict": "Mostly Credible",
+        "election": false
+      },
+      "off": {
+        "score": 72,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "bbc.com",
+      "group": "reliable",
+      "expectedBand": "Mostly Credible",
+      "electionExpected": false,
+      "mbfcRating": "High / High",
+      "on": {
+        "score": 80,
+        "verdict": "High Confidence",
+        "election": false
+      },
+      "off": {
+        "score": 78,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "npr.org",
+      "group": "reliable",
+      "expectedBand": "Mostly Credible",
+      "electionExpected": true,
+      "mbfcRating": "High / High",
+      "on": {
+        "score": 71,
+        "verdict": "Mostly Credible",
+        "election": true
+      },
+      "off": {
+        "score": 62,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "cnn.com",
+      "group": "mixed",
+      "expectedBand": "Mixed Evidence",
+      "electionExpected": false,
+      "mbfcRating": "Mixed / Medium",
+      "on": {
+        "score": 41,
+        "verdict": "Mixed Evidence",
+        "election": false
+      },
+      "off": {
+        "score": 35,
+        "verdict": "Low Credibility"
+      }
+    },
+    {
+      "domain": "foxnews.com",
+      "group": "mixed",
+      "expectedBand": "Mixed Evidence",
+      "electionExpected": false,
+      "mbfcRating": "Mixed / Medium",
+      "on": {
+        "score": 43,
+        "verdict": "Mixed Evidence",
+        "election": false
+      },
+      "off": {
+        "score": 42,
+        "verdict": "Mixed Evidence"
+      }
+    },
+    {
+      "domain": "dailymail.co.uk",
+      "group": "questionable",
+      "expectedBand": "Low Credibility",
+      "electionExpected": false,
+      "mbfcRating": "Low / Low",
+      "on": {
+        "score": 18,
+        "verdict": "Unverifiable",
+        "election": false
+      },
+      "off": {
+        "score": 18,
+        "verdict": "Low Credibility"
+      }
+    },
+    {
+      "domain": "infowars.com",
+      "group": "questionable",
+      "expectedBand": "Low Credibility",
+      "electionExpected": false,
+      "mbfcRating": "Very Low / Low",
+      "on": {
+        "score": 11,
+        "verdict": "Unverifiable",
+        "election": false
+      },
+      "off": {
+        "score": 15,
+        "verdict": "Low Credibility"
+      }
+    },
+    {
+      "domain": "thegatewaypundit.com",
+      "group": "questionable",
+      "expectedBand": "Low Credibility",
+      "electionExpected": true,
+      "mbfcRating": "Very Low / Low",
+      "on": {
+        "score": 11,
+        "verdict": "Unverifiable",
+        "election": true
+      },
+      "off": {
+        "score": 15,
+        "verdict": "Low Credibility"
+      }
+    },
+    {
+      "domain": "oann.com",
+      "group": "questionable",
+      "expectedBand": "Low Credibility",
+      "electionExpected": false,
+      "mbfcRating": "Very Low / Low",
+      "on": {
+        "score": 14,
+        "verdict": "Unverifiable",
+        "election": false
+      },
+      "off": {
+        "score": 18,
+        "verdict": "Low Credibility"
+      }
+    },
+    {
+      "domain": "breitbart.com",
+      "group": "questionable",
+      "expectedBand": "Low Credibility",
+      "electionExpected": false,
+      "mbfcRating": "Low / Low",
+      "on": {
+        "score": 39,
+        "verdict": "Low Credibility",
+        "election": false
+      },
+      "off": {
+        "score": 62,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "newsmax.com",
+      "group": "questionable",
+      "expectedBand": "Low Credibility",
+      "electionExpected": false,
+      "mbfcRating": "Low / Low",
+      "on": {
+        "score": 39,
+        "verdict": "Low Credibility",
+        "election": false
+      },
+      "off": {
+        "score": 72,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "thesun.co.uk",
+      "group": "questionable",
+      "expectedBand": "Low Credibility",
+      "electionExpected": false,
+      "mbfcRating": "Low / Low",
+      "on": {
+        "score": 39,
+        "verdict": "Low Credibility",
+        "election": false
+      },
+      "off": {
+        "score": 68,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "smalltownexample.org",
+      "group": "unknown",
+      "expectedBand": "Mixed Evidence",
+      "electionExpected": false,
+      "mbfcRating": null,
+      "on": {
+        "score": 72,
+        "verdict": "Mostly Credible",
+        "election": false
+      },
+      "off": {
+        "score": 72,
+        "verdict": "Mostly Credible"
+      }
+    },
+    {
+      "domain": "myhotopinions.example",
+      "group": "unknown",
+      "expectedBand": "Unverifiable",
+      "electionExpected": false,
+      "mbfcRating": null,
+      "on": {
+        "score": 15,
+        "verdict": "Unverifiable",
+        "election": false
+      },
+      "off": {
+        "score": 15,
+        "verdict": "Unverifiable"
+      }
+    }
+  ]
+}

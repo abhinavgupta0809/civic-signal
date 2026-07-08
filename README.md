@@ -112,11 +112,20 @@ Latest run — see [`eval/report/agreement.md`](eval/report/agreement.md):
 | Coverage gaps surfaced (sources to add) | 9 |
 
 **Layer 2 — live end-to-end ablation (`npm run eval:live`).** Runs a labeled
-corpus through the real pipeline **with MBFC grounding on vs. off** and reports
-the headline result — *how many questionable-source articles the ungrounded model
-lets score as credible, and how the MBFC cap holds them at the Low-Credibility
-band* — plus source separation and verdict accuracy, written to
-`eval/report/latest.md`. (Requires an Anthropic key with credits.)
+corpus through the real pipeline **with MBFC grounding on vs. off**, written to
+[`eval/report/latest.md`](eval/report/latest.md). Latest 15-article run:
+
+| Result | Value |
+| --- | --- |
+| Questionable-source articles that **escaped** the Low-Credibility band *without* MBFC | **3 of 7** |
+| Held at "Low Credibility" **with** MBFC grounding | **7 of 7** |
+| Reliable vs. questionable **score separation** | **53 pts** (77.8 vs. 24.4) |
+
+Those three "escapes" are the whole point: straight-news-style articles from
+Low-credibility outlets (Breitbart, Newsmax, The Sun) that the ungrounded model
+rated **"Mostly Credible" (62–72)** — MBFC grounding capped all three to **39
+("Low Credibility")**. The model alone gets fooled by clean writing; grounding
+the source signal in human-reviewed data is what catches it.
 
 See [`eval/README.md`](eval/README.md) for the full methodology and honesty notes.
 

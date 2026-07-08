@@ -1,6 +1,6 @@
 # MBFC snapshot vs. gold labels — dataset agreement
 
-_Generated 2026-07-08 09:30 UTC · deterministic (no API) · run via `npm run eval`_
+_Generated 2026-07-08 10:41 UTC · deterministic (no API) · run via `npm run eval`_
 
 > Grades the curated MBFC snapshot in `lib/mbfc.ts` against an independent reliability consensus (`eval/fixtures/gold-sources.json`). Gold labels are a curated consensus, not absolute truth.
 

@@ -4,7 +4,7 @@
     "groups": {
       "reliable": "MBFC High-credibility source; expect high scores",
       "mixed": "MBFC Medium-credibility source; expect mid scores (capped at 79)",
-      "questionable": "MBFC Low-credibility source; MUST be capped at the Low-Credibility band (<=39) when MBFC is on",
+      "questionable": "MBFC Low-credibility source; MUST be capped at the Low-Credibility band (<=39) when MBFC is on. Includes BOTH obviously-bad pieces (which the ungrounded model already catches) and plausibly-written straight-news pieces (which only the MBFC cap catches) so the on/off ablation is meaningful",
       "unknown": "No MBFC rating; exercises the ungrounded fallback path"
     },
     "bandVocabulary": ["High Confidence", "Mostly Credible", "Mixed Evidence", "Low Credibility", "Unverifiable"]
@@ -20,6 +20,9 @@
     { "file": "infowars-conspiracy.txt", "domain": "infowars.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
     { "file": "gatewaypundit-fraud.txt", "domain": "thegatewaypundit.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": true },
     { "file": "oann-claims.txt", "domain": "oann.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
+    { "file": "breitbart-jobs.txt", "domain": "breitbart.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
+    { "file": "newsmax-infrastructure.txt", "domain": "newsmax.com", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
+    { "file": "thesun-transport.txt", "domain": "thesun.co.uk", "group": "questionable", "expectedBand": "Low Credibility", "electionExpected": false },
     { "file": "unknown-local-factual.txt", "domain": "smalltownexample.org", "group": "unknown", "expectedBand": "Mixed Evidence", "electionExpected": false },
     { "file": "unknown-opinion.txt", "domain": "myhotopinions.example", "group": "unknown", "expectedBand": "Unverifiable", "electionExpected": false }
   ]
