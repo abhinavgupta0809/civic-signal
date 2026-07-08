@@ -143,6 +143,14 @@ export function SignalBars({ signals, explanations, mbfc }: SignalBarsProps) {
             below 20 Unverifiable.
           </p>
           <p>
+            <span className="font-medium text-foreground/80">Article accuracy vs source trust:</span>{" "}
+            the two numbers above the signals separate what the text says
+            (corroboration, fact-check alignment, framing) from who published it
+            (the outlet&apos;s track record). An accurate article from an
+            unreliable publisher — or vice versa — shows up as a gap between
+            them.
+          </p>
+          <p>
             <span className="font-medium text-foreground/80">Source credibility</span>{" "}
             uses Media Bias/Fact Check&apos;s human-reviewed rating when the
             outlet is recognized — it is deterministic, not AI-estimated, and a

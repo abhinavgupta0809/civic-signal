@@ -284,6 +284,9 @@ export default function HomePage() {
               score={result.score}
               verdict={result.verdict}
               summary={result.summary}
+              articleAccuracy={result.article_accuracy}
+              sourceCredibility={result.signals.source_credibility}
+              mbfc={result.mbfc}
             />
             <SignalBars
               signals={result.signals}

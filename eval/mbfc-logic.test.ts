@@ -20,6 +20,7 @@ function baseResult(overrides: Partial<AnalysisResult> = {}): AnalysisResult {
     verdict: "High Confidence",
     summary: "A well-sourced report with corroborated claims.",
     election_related: false,
+    article_accuracy: 93,
     signals: {
       source_credibility: 25,
       claim_corroboration: 24,

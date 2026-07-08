@@ -316,6 +316,9 @@ function render(result, { cached, source }) {
   // Meta
   const parts = [];
   if (source?.domain) parts.push(source.domain);
+  if (typeof result.article_accuracy === "number") {
+    parts.push(`article accuracy ${result.article_accuracy}/100`);
+  }
   if (result.mbfc) {
     parts.push(`${result.mbfc.name}: ${result.mbfc.factualReporting} factual (MBFC)`);
   }

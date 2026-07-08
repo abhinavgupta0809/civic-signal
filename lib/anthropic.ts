@@ -257,6 +257,7 @@ function safeFallback(
     verdict: "Unverifiable",
     summary: `${ANALYSIS_FAILED_PREFIX}: ${reason}`,
     election_related: electionRelated,
+    article_accuracy: 0,
     signals: {
       source_credibility: 0,
       claim_corroboration: 0,
@@ -321,6 +322,17 @@ export function parseModelResponse(
 
   const score = clampScore(data.score);
 
+  // Text-only accuracy: the three signals the model judges from the article
+  // itself, scaled from their 0–75 sum to 0–100. Source reputation is
+  // intentionally excluded (and the MBFC override never touches this).
+  const article_accuracy = Math.round(
+    ((signals.claim_corroboration +
+      signals.fact_check_match +
+      signals.manipulation_language) /
+      75) *
+      100
+  );
+
   // Most important claims first: Central, then Supporting, then Peripheral.
   // Stable sort preserves the model's own ordering within each tier.
   const relevanceRank = (r: (typeof CLAIM_RELEVANCE)[number]) =>
@@ -341,6 +353,7 @@ export function parseModelResponse(
     verdict: VERDICTS.includes(data.verdict) ? data.verdict : scoreToVerdict(score),
     summary: data.summary.trim(),
     election_related: electionRelated || data.election_related,
+    article_accuracy,
     signals,
     signal_explanations: {
       source_credibility: data.signal_explanations.source_credibility.trim(),

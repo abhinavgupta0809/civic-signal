@@ -97,6 +97,13 @@ export interface AnalysisResult {
   verdict: Verdict;
   summary: string;
   election_related: boolean;
+  /**
+   * 0–100 score for the article TEXT alone (claim corroboration, fact-check
+   * match, manipulation language — scaled from their 0–75 sum). Deliberately
+   * excludes source reputation, so an accurate article from a distrusted
+   * outlet (or a shaky article from a reputable one) is legible at a glance.
+   */
+  article_accuracy: number;
   signals: Signals;
   /** Per-signal reasoning shown under each bar in the UI. */
   signal_explanations: SignalExplanations;

@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { scoreToColor } from "@/lib/scoring";
-import type { Verdict } from "@/lib/types";
+import type { MbfcRating, Verdict } from "@/lib/types";
 
 interface ScoreCardProps {
   score: number;
   verdict: Verdict;
   summary: string;
+  /** 0–100 score for the article text alone (excludes source reputation). */
+  articleAccuracy: number;
+  /** The source-credibility signal (0–25), MBFC-derived when mbfc is set. */
+  sourceCredibility: number;
+  mbfc?: MbfcRating | null;
 }
 
 const COLOR_STYLES: Record<
@@ -34,9 +39,33 @@ const COLOR_STYLES: Record<
   },
 };
 
-export function ScoreCard({ score, verdict, summary }: ScoreCardProps) {
+export function ScoreCard({
+  score,
+  verdict,
+  summary,
+  articleAccuracy,
+  sourceCredibility,
+  mbfc,
+}: ScoreCardProps) {
   const [displayScore, setDisplayScore] = useState(0);
   const styles = COLOR_STYLES[scoreToColor(score)];
+
+  // Source trust on the same 0–100 scale as article accuracy.
+  const sourceTrust = Math.round((sourceCredibility / 25) * 100);
+  const accuracyStyles = COLOR_STYLES[scoreToColor(articleAccuracy)];
+  const trustStyles = COLOR_STYLES[scoreToColor(sourceTrust)];
+
+  // When the two numbers tell different stories, say so in plain English.
+  const lowTrust = mbfc?.credibility === "Low" || sourceTrust < 40;
+  const highTrust = mbfc?.credibility === "High" || sourceTrust >= 70;
+  let divergenceNote: string | null = null;
+  if (articleAccuracy >= 60 && lowTrust) {
+    divergenceNote =
+      "This article's content largely checks out, but the publisher's track record drags the overall score down. Verify key claims with a second source before sharing.";
+  } else if (articleAccuracy < 45 && highTrust) {
+    divergenceNote =
+      "This outlet is generally reliable, but this particular article has weak corroboration. Treat its specific claims with care.";
+  }
 
   useEffect(() => {
     const duration = 700;
@@ -77,7 +106,7 @@ export function ScoreCard({ score, verdict, summary }: ScoreCardProps) {
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center md:items-start md:text-left">
         <span
           className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold ${styles.badge}`}
         >
@@ -94,6 +123,41 @@ export function ScoreCard({ score, verdict, summary }: ScoreCardProps) {
           Credibility assessment
         </h2>
         <p className="text-[15px] leading-relaxed text-muted">{summary}</p>
+
+        <div className="mt-4 grid w-full gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-border bg-card-subtle p-4 text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Article accuracy
+            </p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${accuracyStyles.text}`}>
+              {articleAccuracy}
+              <span className="text-sm font-normal text-muted">/100</span>
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              The text alone: corroboration, fact-check alignment, and framing.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card-subtle p-4 text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+              Source trust
+            </p>
+            <p className={`mt-1 text-2xl font-bold tabular-nums ${trustStyles.text}`}>
+              {sourceTrust}
+              <span className="text-sm font-normal text-muted">/100</span>
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              {mbfc
+                ? `${mbfc.name}: ${mbfc.factualReporting} factual reporting (Media Bias/Fact Check).`
+                : "Unrecognized outlet — estimated cautiously from the text."}
+            </p>
+          </div>
+        </div>
+
+        {divergenceNote && (
+          <p className="mt-2 w-full rounded-xl border border-amber-600/25 bg-amber-600/10 p-3 text-left text-[13px] leading-relaxed text-amber-800 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200">
+            {divergenceNote}
+          </p>
+        )}
       </div>
     </section>
   );

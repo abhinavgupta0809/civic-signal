@@ -422,6 +422,7 @@ function safeFallback(electionRelated, reason) {
     verdict: "Unverifiable",
     summary: `${ANALYSIS_FAILED_PREFIX}: ${reason}`,
     election_related: electionRelated,
+    article_accuracy: 0,
     signals: {
       source_credibility: 0,
       claim_corroboration: 0,
@@ -503,6 +504,16 @@ export function parseModelResponse(raw, electionRelated) {
 
   const score = clampScore(parsed.score);
 
+  // Text-only accuracy: the three article signals scaled to 0–100. Source
+  // reputation is excluded; the MBFC override never touches this.
+  const article_accuracy = Math.round(
+    ((signals.claim_corroboration +
+      signals.fact_check_match +
+      signals.manipulation_language) /
+      75) *
+      100
+  );
+
   const rawExplanations =
     parsed.signal_explanations && typeof parsed.signal_explanations === "object"
       ? parsed.signal_explanations
@@ -534,6 +545,7 @@ export function parseModelResponse(raw, electionRelated) {
       : scoreToVerdict(score),
     summary: parsed.summary.trim(),
     election_related: electionRelated || parsed.election_related,
+    article_accuracy,
     signals,
     signal_explanations: {
       source_credibility: explanationOf("source_credibility"),
