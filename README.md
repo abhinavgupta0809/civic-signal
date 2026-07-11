@@ -6,6 +6,8 @@ You paste an article, or you analyze the current tab with the Chrome extension. 
 
 Built with Next.js 15 (App Router), TypeScript, Tailwind CSS, and the Anthropic Claude API.
 
+Try it live: <https://civic-signal.replit.app>
+
 ---
 
 ## 🚦 Two ways to use CivicSignal, pick one
